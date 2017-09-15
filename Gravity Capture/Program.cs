@@ -24,6 +24,8 @@ namespace IngameScript
         List<IMyGravityGeneratorBase> Shield = new List<IMyGravityGeneratorBase>();
         List<IMyGravityGeneratorBase> Rota1 = new List<IMyGravityGeneratorBase>();
         List<IMyGravityGeneratorBase> Rota2 = new List<IMyGravityGeneratorBase>();
+        
+        
 
         public Program()
         {
