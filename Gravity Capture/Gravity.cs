@@ -20,7 +20,25 @@ namespace IngameScript
     {
         public class Gravity
         {
+            IMyGravityGeneratorBase Generator;
+            float[] dimensions = new float[3];
+            bool negateGravity;
 
+            public Gravity(IMyGravityGeneratorBase block,float width,float height,float depth)
+            {
+                dimensions[0] = width;
+                dimensions[1] = height;
+                dimensions[2] = depth;
+                Generator = block;
+                negateGravity = Generator.CustomName.Contains('-');
+            }
+            public void SetGravity(float value)
+            { 
+                if (negateGravity)
+                    Generator.GravityAcceleration = - value;
+                else
+                    Generator.GravityAcceleration = value;
+            }
         }
     }
 }
