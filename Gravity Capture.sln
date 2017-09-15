@@ -1,0 +1,22 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.26730.12
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Gravity Capture", "Gravity Capture\Gravity Capture.csproj", "{32DA7268-F43A-430E-8C8F-5A727A6CB638}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{32DA7268-F43A-430E-8C8F-5A727A6CB638}.Debug|x64.ActiveCfg = Debug|x64
+		{32DA7268-F43A-430E-8C8F-5A727A6CB638}.Debug|x64.Build.0 = Debug|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {DFE5B09F-751B-4EAE-9807-B6845BAED404}
+	EndGlobalSection
+EndGlobal
