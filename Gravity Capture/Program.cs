@@ -81,6 +81,13 @@ namespace IngameScript
             }
             switch (currentMState)
             {
+                case MState.WaitingTime:
+                    if (argument == "timerTrigger")
+                    {
+                        currentState = mainStateMaschine[(int)currentState - 1].nextState;
+                        currentMState = MState.Working;
+                    }
+                    break;
                 case MState.Working:
                     debugPanel.WritePublicText(("Current State is " + mainStateMaschine[(int)currentState - 1].currentState + "\n"), true);
                     switch (mainStateMaschine[(int)currentState - 1].conditionForNextState)
@@ -103,13 +110,6 @@ namespace IngameScript
                             break;
                     }
                     
-                    break;
-                case MState.WaitingTime:
-                    if (argument == "timerTrigger")
-                    {
-                        currentState = mainStateMaschine[(int)currentState - 1].nextState;
-                        currentMState = MState.Working;
-                    }
                     break;
                 case MState.WaitingExternalEvent:
                     if (argument.StartsWith(awaitedTrigger))

@@ -18,7 +18,7 @@ namespace IngameScript
 {
     partial class Program
     {
-        public enum State { None = 0, Idle, CatchShip, ShipInHangar, Eject };
+        public enum State { None = 0, Idle, CatchShip, ShipInHangar, Eject, CraftDetected, CraftCatched };
         public enum Conditions { None, Time, ExternalTrigger };
 
         //Setting Flags as Instructions for multiple Data in one
@@ -61,12 +61,14 @@ namespace IngameScript
             FillStateTableEntry(state_table[1], State.CatchShip, State.None, null, Conditions.ExternalTrigger, null, 0);
             FillStateTableEntry(state_table[2], State.ShipInHangar, State.None, null, Conditions.ExternalTrigger, null, 0);
             FillStateTableEntry(state_table[3], State.Eject, State.Idle, null, Conditions.Time, null, 4);
+            FillStateTableEntry(state_table[4], State.CraftDetected, State.CraftCatched, null, Conditions.Time, null, 6);
+            FillStateTableEntry(state_table[5], State.CraftCatched, State.None, null, Conditions.ExternalTrigger, null, 0);
         }
 
         public StateMaschine[] CreateStateMaschine(IMyTextPanel debugPanel)
         {
             debugPanel.WritePublicText("Starting Setup \n", false);
-            StateMaschine[] stateMaschine = new StateMaschine[4];
+            StateMaschine[] stateMaschine = new StateMaschine[6];
             for (int i = 0; i < 4; i++)
             {
                 stateMaschine[i] = new StateMaschine();
