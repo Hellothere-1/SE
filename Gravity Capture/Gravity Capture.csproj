@@ -105,15 +105,16 @@
       <Private>False</Private>
     </Reference>
     <Reference Include="MDKUtilities">
-      <HintPath>C:\Users\Jari\AppData\Local\Microsoft\VisualStudio\15.0_8affdcbc\Extensions\dnrj5ied.if0\MDKUtilities.dll</HintPath>
+      <HintPath>C:\Users\LWort\AppData\Local\Microsoft\VisualStudio\15.0_d6393243\Extensions\2puh3pbr.owd\MDKUtilities.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Analyzer Include="C:\Users\Jari\AppData\Local\Microsoft\VisualStudio\15.0_8affdcbc\Extensions\dnrj5ied.if0\Analyzers\MDKAnalyzer.dll" />
+    <Analyzer Include="C:\Users\LWort\AppData\Local\Microsoft\VisualStudio\15.0_d6393243\Extensions\2puh3pbr.owd\Analyzers\MDKAnalyzer.dll" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="GeneratorsDiv.cs" />
     <Compile Include="GeneratorsUni.cs" />
     <Compile Include="Gravity.cs" />
+    <Compile Include="StateMaschine.cs" />
     <Compile Include="MDK\Bootstrapper.cs" />
     <AdditionalFiles Include="MDK\MDK.options">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>

@@ -44,12 +44,15 @@ namespace IngameScript
 
         public Program()
         {
-            // The constructor, called only once every session and
-            // always before any other method is called. Use it to
-            // initialize your script. 
-            //     
-            // The constructor is optional and can be removed if not
-            // needed.
+                scriptTimer = GridTerminalSystem.GetBlockWithName("Script Timer") as IMyTimerBlock;
+
+                debugPanel = GridTerminalSystem.GetBlockWithName("Debug Panel") as IMyTextPanel;
+
+                mainStateMaschine = CreateStateMaschine(debugPanel);
+                debugPanel.WritePublicText("Main is ready \n", true);
+                currentState = State.Idle;
+                currentMState = MState.Working;
+
         }
 
         public void Save()
@@ -64,21 +67,6 @@ namespace IngameScript
 
         public void Main(string argument)
         {
-            if (scriptTimer == null)
-            {
-                scriptTimer = GridTerminalSystem.GetBlockWithName("Script Timer") as IMyTimerBlock;
-            }
-            if (debugPanel == null)
-            {
-                debugPanel = GridTerminalSystem.GetBlockWithName("Debug Panel") as IMyTextPanel;
-            }
-            if (mainStateMaschine == null)
-            {
-                mainStateMaschine = CreateStateMaschine(debugPanel);
-                debugPanel.WritePublicText("Main is ready \n", true);
-                currentState = State.Idle;
-                currentMState = MState.Working;
-            }
             switch (currentMState)
             {
                 case MState.Working:
