@@ -42,10 +42,10 @@ namespace IngameScript
             public Instructions[] instructions;
             public Conditions conditionForNextState;
             public Object[] InstructionData;
-            public int ConditionTime;
+            public float ConditionTime;
         }
 
-        public void FillStateTableEntry(StateMaschine entry, State current, State next, Instructions[] instr, Conditions conds, Object[] data, int time)
+        public void FillStateTableEntry(StateMaschine entry, State current, State next, Instructions[] instr, Conditions conds, Object[] data, float time)
         {
             entry.currentState = current;
             entry.nextState = next;
@@ -60,7 +60,7 @@ namespace IngameScript
             FillStateTableEntry(state_table[0], State.Idle, State.CatchShip, null, Conditions.None, null, 0);
             FillStateTableEntry(state_table[1], State.CatchShip, State.ShipInHangar, null, Conditions.ExternalTrigger, null, 0);
             FillStateTableEntry(state_table[2], State.ShipInHangar, State.Eject, null, Conditions.ExternalTrigger, null, 0);
-            FillStateTableEntry(state_table[3], State.Eject, State.Idle, null, Conditions.Time, null, 1);
+            FillStateTableEntry(state_table[3], State.Eject, State.Idle, null, Conditions.Time, null, 4);
         }
 
         public StateMaschine[] CreateStateMaschine(IMyTextPanel debugPanel)

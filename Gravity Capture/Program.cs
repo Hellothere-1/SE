@@ -30,11 +30,11 @@ namespace IngameScript
         enum MState { Working, WaitingTime, WaitingExternalEvent };
 
         IMyTextPanel debugPanel;
+        IMyTimerBlock scriptTimer;
         StateMaschine[] mainStateMaschine;
         State currentState;
         MState currentMState;
-        int isTime;
-        int waitTime;
+        float waitTime;
         string awaitedTrigger;
         
         
@@ -62,6 +62,10 @@ namespace IngameScript
 
         public void Main(string argument)
         {
+            if (scriptTimer == null)
+            {
+                scriptTimer = GridTerminalSystem.GetBlockWithName("Script Timer") as IMyTimerBlock;
+            }
             if (debugPanel == null)
             {
                 debugPanel = GridTerminalSystem.GetBlockWithName("Debug Panel") as IMyTextPanel;
@@ -85,21 +89,21 @@ namespace IngameScript
                             break;
                         case Conditions.Time:
                             waitTime = mainStateMaschine[(int)currentState].ConditionTime;
-                            debugPanel.WritePublicText(("Waiting to switch to state " + mainStateMaschine[(int)currentState].nextState + " in " + waitTime +" seconds\n"), true);
+                            scriptTimer.TriggerDelay = waitTime;
+                            scriptTimer.StartCountdown();
+                            debugPanel.WritePublicText(("Waiting for switch in " + waitTime +" seconds\n"), true);
                             currentMState = MState.WaitingTime;
                             break;
                         case Conditions.ExternalTrigger:
                             awaitedTrigger = mainStateMaschine[(int)currentState].nextState.ToString();
-                            debugPanel.WritePublicText(("Waiting to switch to state " + mainStateMaschine[(int)currentState].nextState + " with trigger " + awaitedTrigger + "\n"), true);
+                            debugPanel.WritePublicText(("Waiting for switch with trigger " + awaitedTrigger + "\n"), true);
                             currentMState = MState.WaitingExternalEvent;
                             break;
                     }
                     
                     break;
                 case MState.WaitingTime:
-                    //TODO possible to solve over Timer Block trigger??
-                    isTime = isTime + 1;
-                    if (isTime >= waitTime - 1)
+                    if (argument == "timerTrigger")
                     {
                         currentState = mainStateMaschine[(int)currentState].nextState;
                         currentMState = MState.Working;
