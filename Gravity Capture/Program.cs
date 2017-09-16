@@ -82,23 +82,23 @@ namespace IngameScript
             switch (currentMState)
             {
                 case MState.Working:
-                    debugPanel.WritePublicText(("Current State is " + mainStateMaschine[(int)currentState].currentState + "\n"), true);
-                    switch (mainStateMaschine[(int)currentState].conditionForNextState)
+                    debugPanel.WritePublicText(("Current State is " + mainStateMaschine[(int)currentState - 1].currentState + "\n"), true);
+                    switch (mainStateMaschine[(int)currentState - 1].conditionForNextState)
                     {
                         case Conditions.None:
-                            debugPanel.WritePublicText(("Switching to state " + mainStateMaschine[(int)currentState].nextState + "\n"), true);
-                            currentState = mainStateMaschine[(int)currentState].nextState;
+                            debugPanel.WritePublicText(("Switching to state " + mainStateMaschine[(int)currentState - 1].nextState + "\n"), true);
+                            currentState = mainStateMaschine[(int)currentState - 1].nextState;
                             break;
                         case Conditions.Time:
-                            waitTime = mainStateMaschine[(int)currentState].ConditionTime;
+                            waitTime = mainStateMaschine[(int)currentState - 1].ConditionTime;
                             scriptTimer.TriggerDelay = waitTime;
                             scriptTimer.StartCountdown();
                             debugPanel.WritePublicText(("Waiting for switch in " + waitTime +" seconds\n"), true);
                             currentMState = MState.WaitingTime;
                             break;
                         case Conditions.ExternalTrigger:
-                            awaitedTrigger = mainStateMaschine[(int)currentState].nextState.ToString();
-                            debugPanel.WritePublicText(("Waiting for switch with trigger " + awaitedTrigger + "\n"), true);
+                            awaitedTrigger = (mainStateMaschine[(int)currentState - 1].currentState.ToString() + "_");
+                            debugPanel.WritePublicText(("Waiting for switch with trigger " + awaitedTrigger + "nextState\n"), true);
                             currentMState = MState.WaitingExternalEvent;
                             break;
                     }
@@ -107,15 +107,24 @@ namespace IngameScript
                 case MState.WaitingTime:
                     if (argument == "timerTrigger")
                     {
-                        currentState = mainStateMaschine[(int)currentState].nextState;
+                        currentState = mainStateMaschine[(int)currentState - 1].nextState;
                         currentMState = MState.Working;
                     }
                     break;
                 case MState.WaitingExternalEvent:
-                    if (argument == awaitedTrigger)
+                    if (argument.StartsWith(awaitedTrigger))
                     {
-                        currentState = mainStateMaschine[(int)currentState].nextState;
-                        currentMState = MState.Working;
+                        string compare = argument.Split('_')[1];
+                        try
+                        {
+                            currentState = (State)Enum.Parse(typeof(State), compare);
+                            currentMState = MState.Working;
+                        }
+                        catch (ArgumentException)
+                        {
+                            debugPanel.WritePublicText(("Error : " + compare + " nicht als State vorhanden\n"), true);
+                        }
+                        
                     }
                     break;
                 default:

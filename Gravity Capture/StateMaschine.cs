@@ -18,7 +18,7 @@ namespace IngameScript
 {
     partial class Program
     {
-        public enum State { Idle, CatchShip, ShipInHangar, Eject };
+        public enum State { None = 0, Idle, CatchShip, ShipInHangar, Eject };
         public enum Conditions { None, Time, ExternalTrigger };
 
         //Setting Flags as Instructions for multiple Data in one
@@ -57,9 +57,9 @@ namespace IngameScript
 
         public void FillStateTable(StateMaschine[] state_table)
         {   //TODO extend for all states 
-            FillStateTableEntry(state_table[0], State.Idle, State.CatchShip, null, Conditions.None, null, 0);
-            FillStateTableEntry(state_table[1], State.CatchShip, State.ShipInHangar, null, Conditions.ExternalTrigger, null, 0);
-            FillStateTableEntry(state_table[2], State.ShipInHangar, State.Eject, null, Conditions.ExternalTrigger, null, 0);
+            FillStateTableEntry(state_table[0], State.Idle, State.None, null, Conditions.ExternalTrigger, null, 0);
+            FillStateTableEntry(state_table[1], State.CatchShip, State.None, null, Conditions.ExternalTrigger, null, 0);
+            FillStateTableEntry(state_table[2], State.ShipInHangar, State.None, null, Conditions.ExternalTrigger, null, 0);
             FillStateTableEntry(state_table[3], State.Eject, State.Idle, null, Conditions.Time, null, 4);
         }
 
