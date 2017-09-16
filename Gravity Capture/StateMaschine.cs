@@ -18,12 +18,15 @@ namespace IngameScript
 {
     partial class Program
     {
-        enum State { Idle, CatchShip, ShipInHangar, Eject };
+        public enum State { Idle, CatchShip, ShipInHangar, Eject };
+        public enum Conditions { None, Time, ExternalTrigger };
 
-        [Flags]
         //Setting Flags as Instructions for multiple Data in one
-        enum Instructions
-        {   ResetFieldValue     = 0x01,
+        [Flags]
+        public enum Instructions
+        {
+            None                = 0x00,
+            ResetFieldValue     = 0x01,
             SetFieldValue       = 0x02,
             PowerOn             = 0x04,
             PowerOff            = 0x08,
@@ -32,23 +35,51 @@ namespace IngameScript
             NegateStrength      = 0x64
         };
 
-
         public class StateMaschine
         {
-            State currentState;
-            State[] nextState;
-            Instructions[] instructions;
-            
-            Object[] InstructionData;
+            public State currentState;
+            public State nextState;
+            public Instructions[] instructions;
+            public Conditions conditionForNextState;
+            public Object[] InstructionData;
+            public int ConditionTime;
         }
 
-        //TODO dynamic size of state_table
-        public StateMaschine[] state_table = new StateMaschine[4];
-
-        public void FillStateTableEntry(StateMaschine entry)
+        public void FillStateTableEntry(StateMaschine entry, State current, State next, Instructions[] instr, Conditions conds, Object[] data, int time)
         {
-
+            entry.currentState = current;
+            entry.nextState = next;
+            entry.instructions = instr;
+            entry.conditionForNextState = conds;
+            entry.InstructionData = data;
+            entry.ConditionTime = time;
         }
 
+        public void FillStateTable(StateMaschine[] state_table)
+        {
+            FillStateTableEntry(state_table[0], State.Idle, State.CatchShip, null, Conditions.None, null, 0);
+            FillStateTableEntry(state_table[1], State.CatchShip, State.ShipInHangar, null, Conditions.ExternalTrigger, null, 0);
+            FillStateTableEntry(state_table[2], State.ShipInHangar, State.Eject, null, Conditions.ExternalTrigger, null, 0);
+            FillStateTableEntry(state_table[3], State.Eject, State.Idle, null, Conditions.Time, null, 1);
+        }
+
+        public StateMaschine[] CreateStateMaschine(IMyTextPanel debugPanel)
+        {
+            debugPanel.WritePublicText("Starting Setup \n", false);
+            StateMaschine[] stateMaschine = new StateMaschine[4];
+            for (int i = 0; i < 4; i++)
+            {
+                stateMaschine[i] = new StateMaschine();
+            }
+            debugPanel.WritePublicText("Created State Maschine\n", true);
+            if (stateMaschine[0] == null)
+            {
+                debugPanel.WritePublicText("Is empty \n", true);
+                return null;
+            }
+            FillStateTable(stateMaschine);
+            debugPanel.WritePublicText("Filled State Maschine \n", true);
+            return stateMaschine;
+        }
     }
 }
