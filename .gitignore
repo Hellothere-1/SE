@@ -7,7 +7,7 @@
 *.userosscache
 *.sln.docstates
 
-#We dont wont this shit uploaded, it breaks everything
+#We dont want this shit uploaded, it breaks everything
 .csproj
 .options
 
