@@ -27,7 +27,9 @@ namespace IngameScript
         List<IMyGravityGeneratorBase> Rota1 = new List<IMyGravityGeneratorBase>();
         List<IMyGravityGeneratorBase> Rota2 = new List<IMyGravityGeneratorBase>();
 
+        //Declaring MStates (MaschineStates)
         enum MState { Working, WaitingTime, WaitingExternalEvent };
+
 
         IMyTextPanel debugPanel;
         IMyTimerBlock scriptTimer;

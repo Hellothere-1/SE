@@ -56,7 +56,7 @@ namespace IngameScript
         }
 
         public void FillStateTable(StateMaschine[] state_table)
-        {
+        {   //TODO extend for all states 
             FillStateTableEntry(state_table[0], State.Idle, State.CatchShip, null, Conditions.None, null, 0);
             FillStateTableEntry(state_table[1], State.CatchShip, State.ShipInHangar, null, Conditions.ExternalTrigger, null, 0);
             FillStateTableEntry(state_table[2], State.ShipInHangar, State.Eject, null, Conditions.ExternalTrigger, null, 0);
