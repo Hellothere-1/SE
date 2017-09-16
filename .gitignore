@@ -7,10 +7,6 @@
 *.userosscache
 *.sln.docstates
 
-#We dont want this shit uploaded, it breaks everything
-.csproj
-.options
-
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
 
