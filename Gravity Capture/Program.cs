@@ -14,6 +14,8 @@ using VRage.Game.ObjectBuilders.Definitions;
 using VRage.Game;
 using VRageMath;
 
+
+
 namespace IngameScript
 {
     partial class Program : MyGridProgram
@@ -24,6 +26,19 @@ namespace IngameScript
         List<IMyGravityGeneratorBase> Shield = new List<IMyGravityGeneratorBase>();
         List<IMyGravityGeneratorBase> Rota1 = new List<IMyGravityGeneratorBase>();
         List<IMyGravityGeneratorBase> Rota2 = new List<IMyGravityGeneratorBase>();
+
+        enum MState { Working, WaitingTime, WaitingExternalEvent };
+
+        IMyTextPanel debugPanel;
+        StateMaschine[] mainStateMaschine;
+        State currentState;
+        MState currentMState;
+        int isTime;
+        int waitTime;
+        string awaitedTrigger;
+        
+        
+        
 
         public Program()
         {
@@ -47,11 +62,61 @@ namespace IngameScript
 
         public void Main(string argument)
         {
-            // The main entry point of the script, invoked every time
-            // one of the programmable block's Run actions are invoked.
-            // 
-            // The method itself is required, but the argument above
-            // can be removed if not needed.
+            if (debugPanel == null)
+            {
+                debugPanel = GridTerminalSystem.GetBlockWithName("Debug Panel") as IMyTextPanel;
+            }
+            if (mainStateMaschine == null)
+            {
+                mainStateMaschine = CreateStateMaschine(debugPanel);
+                debugPanel.WritePublicText("Main is ready \n", true);
+                currentState = State.Idle;
+                currentMState = MState.Working;
+            }
+            switch (currentMState)
+            {
+                case MState.Working:
+                    debugPanel.WritePublicText(("Current State is " + mainStateMaschine[(int)currentState].currentState + "\n"), true);
+                    switch (mainStateMaschine[(int)currentState].conditionForNextState)
+                    {
+                        case Conditions.None:
+                            debugPanel.WritePublicText(("Switching to state " + mainStateMaschine[(int)currentState].nextState + "\n"), true);
+                            currentState = mainStateMaschine[(int)currentState].nextState;
+                            break;
+                        case Conditions.Time:
+                            waitTime = mainStateMaschine[(int)currentState].ConditionTime;
+                            debugPanel.WritePublicText(("Waiting to switch to state " + mainStateMaschine[(int)currentState].nextState + " in " + waitTime +" seconds\n"), true);
+                            currentMState = MState.WaitingTime;
+                            break;
+                        case Conditions.ExternalTrigger:
+                            awaitedTrigger = mainStateMaschine[(int)currentState].nextState.ToString();
+                            debugPanel.WritePublicText(("Waiting to switch to state " + mainStateMaschine[(int)currentState].nextState + " with trigger " + awaitedTrigger + "\n"), true);
+                            currentMState = MState.WaitingExternalEvent;
+                            break;
+                    }
+                    
+                    break;
+                case MState.WaitingTime:
+                    //TODO possible to solve over Timer Block trigger??
+                    isTime = isTime + 1;
+                    if (isTime >= waitTime - 1)
+                    {
+                        currentState = mainStateMaschine[(int)currentState].nextState;
+                        currentMState = MState.Working;
+                    }
+                    break;
+                case MState.WaitingExternalEvent:
+                    if (argument == awaitedTrigger)
+                    {
+                        currentState = mainStateMaschine[(int)currentState].nextState;
+                        currentMState = MState.Working;
+                    }
+                    break;
+                default:
+                    break;
+            }
+                
+            
         }
     }
 }
