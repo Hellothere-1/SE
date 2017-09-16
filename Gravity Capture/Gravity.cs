@@ -69,18 +69,21 @@ namespace IngameScript
             }
             public void SetX(float value)
             {
+                Generator.Enabled = value >= 1;
                 Vector3 dim = Generator.FieldSize;
                 dim.X = value;
                 Generator.FieldSize = dim;
             }
             public void SetY(float value)
             {
+                Generator.Enabled = value >= 1;
                 Vector3 dim = Generator.FieldSize;
                 dim.Y = value;
                 Generator.FieldSize = dim;
             }
             public void SetZ(float value)
             {
+                Generator.Enabled = value >= 1;
                 Vector3 dim = Generator.FieldSize;
                 dim.Z = value;
                 Generator.FieldSize = dim;

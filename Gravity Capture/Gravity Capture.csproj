@@ -111,6 +111,8 @@
     <Analyzer Include="C:\Users\LWort\AppData\Local\Microsoft\VisualStudio\15.0_d6393243\Extensions\2puh3pbr.owd\Analyzers\MDKAnalyzer.dll" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="GeneratorsDiv.cs" />
+    <Compile Include="GeneratorsUni.cs" />
     <Compile Include="Gravity.cs" />
     <Compile Include="MDK\Bootstrapper.cs" />
     <AdditionalFiles Include="MDK\MDK.options">
