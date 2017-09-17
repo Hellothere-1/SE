@@ -270,6 +270,7 @@ namespace IngameScript
             {
                 lcd.WritePublicText(currentText);
             }
+        }
             
             
         public void Capture()
