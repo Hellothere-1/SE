@@ -40,7 +40,8 @@ namespace IngameScript
         string awaitedTrigger;
         IMyGravityGenerator[,] UpDown=new IMyGravityGenerator[2,2];
         GeneratorsUni GGDis;
-        GeneratorsUni GGRL;
+        GeneratorsUni GGR;
+        GeneratorsUni GGL;
         GeneratorsUni GGUuDo;
         GeneratorsDiv GGFr;
         GeneratorsDiv GGBa;
@@ -64,10 +65,14 @@ namespace IngameScript
             GridTerminalSystem.GetBlocksOfType(Dis, x => x.CustomName.Contains("Gravity Generator DIS"));
             GGDis = new GeneratorsUni(Dis, 20, 15, 10);
             
-            List<IMyGravityGenerator> RL = new List<IMyGravityGenerator>();
-            GridTerminalSystem.GetBlocksOfType(RL, x => x.CustomName.Contains("Gravity Generator le/ri"));
-            GGRL = new GeneratorsUni(RL, 30, 13.6f, 10);
-            
+            List<IMyGravityGenerator> Re = new List<IMyGravityGenerator>();
+            GridTerminalSystem.GetBlocksOfType(Re, x => x.CustomName.Contains("Gravity Generator re"));
+            GGR = new GeneratorsUni(Re, 30, 13.6f, 10);
+
+            List<IMyGravityGenerator> Le = new List<IMyGravityGenerator>();
+            GridTerminalSystem.GetBlocksOfType(Le, x => x.CustomName.Contains("Gravity Generator le"));
+            GGL = new GeneratorsUni(Le, 30, 13.6f, 10);
+
             UpDown[0, 0] = GridTerminalSystem.GetBlockWithName("Gravity Generator up/do FR") as IMyGravityGenerator;
             UpDown[0, 1] = GridTerminalSystem.GetBlockWithName("Gravity Generator up/do FL") as IMyGravityGenerator;
             UpDown[1, 0] = GridTerminalSystem.GetBlockWithName("Gravity Generator up/do BR") as IMyGravityGenerator;
@@ -75,7 +80,7 @@ namespace IngameScript
             List<IMyGravityGenerator> UpDo = new List<IMyGravityGenerator>();
             foreach (IMyGravityGenerator gg in UpDown)
                 UpDo.Add(gg);
-            GGUuDo = new GeneratorsUni(Dis, 10, 30, 7.5f);
+            GGUuDo = new GeneratorsUni(UpDo, 10, 30, 7.5f);
             
             List<Gravity> Fr = new List<Gravity>();
             List<Gravity> Ba = new List<Gravity>();
@@ -153,10 +158,46 @@ namespace IngameScript
         }
         public void Capture()
         {
-            Vector3D positon = HangarSensor.LastDetectedEntity.Position-Reference.GetPosition();
-            Echo(Convert.ToString(positon.X));
-            Echo(Convert.ToString(positon.Y));
-            Echo(Convert.ToString(positon.Z));
+            var worldToAnchorLocalMatrix = Matrix.Transpose(Reference.WorldMatrix.GetOrientation());
+
+            MyDetectedEntityInfo fighter =HangarSensor.LastDetectedEntity;
+
+            Vector3D worldPositon = (fighter.Position-Reference.GetPosition());
+            Vector3D position = Vector3D.Transform(worldPositon, worldToAnchorLocalMatrix)+new Vector3D(0,10,1.25f);
+
+            Vector3D worldVelocities = (fighter.Velocity - Reference.GetShipVelocities().LinearVelocity);
+            Vector3D velocities = Vector3D.Transform(worldVelocities, worldToAnchorLocalMatrix);
+
+            Echo(Convert.ToString(velocities.X));
+            Echo(Convert.ToString(velocities.Y));
+            Echo(Convert.ToString(velocities.Z));
+            Echo(Convert.ToString(position.X));
+            Echo(Convert.ToString(position.Y));
+            Echo(Convert.ToString(position.Z));
+
+            GGFr.SetGravity(9.81f - 5 * Convert.ToSingle(velocities.Z));
+            GGBa.SetGravity(9.81f + 5 * Convert.ToSingle(velocities.Z));
+            GGR.SetGravity(9.81f + 5 * Convert.ToSingle(velocities.X));
+            GGL.SetGravity(9.81f - 5 * Convert.ToSingle(velocities.X));
+
+            if (velocities.Y > 2 || Math.Abs(position.X)> 2 || Math.Abs(position.Y+20) > 2 || Math.Abs(position.Z) > 2)
+            {
+                GGDis.OnOff(true);
+                GGDis.SetGravity(-9.81f - 5 * Convert.ToSingle(velocities.Y));
+                GGUuDo.SetGravity(Convert.ToSingle(-10 * (position.Y + 20) - 5 *velocities.Y));
+            }
+            else
+            {
+                GGDis.OnOff(false);
+                float upDoBase = Convert.ToSingle(-10*(position.Y + 20) - 5 * velocities.Y);
+                float front = 20 * Convert.ToSingle(fighter.Orientation.Forward.Dot(Reference.WorldMatrix.Forward));
+                float right = 40 * Convert.ToSingle(fighter.Orientation.Forward.Dot(Reference.WorldMatrix.Right));
+
+                UpDown[0, 0].GravityAcceleration = upDoBase - front - right;
+                UpDown[0, 1].GravityAcceleration = upDoBase - front + right;
+                UpDown[1, 0].GravityAcceleration = upDoBase + front - right;
+                UpDown[1, 1].GravityAcceleration = upDoBase + front + right;
+            }
 
         }
     }

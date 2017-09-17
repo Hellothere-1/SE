@@ -93,6 +93,11 @@ namespace IngameScript
                 foreach (IMyGravityGenerator generator in Generators)
                     generator.FieldSize = dim;
             }
+            public void OnOff(bool enabled)
+            {
+                foreach (IMyGravityGenerator generator in Generators)
+                    generator.Enabled = enabled;
+            }
         }
     }
 }
