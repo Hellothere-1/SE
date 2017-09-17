@@ -38,20 +38,58 @@ namespace IngameScript
         MState currentMState;
         float waitTime;
         string awaitedTrigger;
-        
-        
-        
+        IMyGravityGenerator[,] UpDown=new IMyGravityGenerator[2,2];
+        GeneratorsUni GGDis;
+        GeneratorsUni GGRL;
+        GeneratorsUni GGUuDo;
+        GeneratorsDiv GGFr;
+        GeneratorsDiv GGBa;
+
+        IMySensorBlock HangarSensor;
+
+
 
         public Program()
         {
-                scriptTimer = GridTerminalSystem.GetBlockWithName("Script Timer") as IMyTimerBlock;
+            scriptTimer = GridTerminalSystem.GetBlockWithName("Script Timer") as IMyTimerBlock;
 
-                debugPanel = GridTerminalSystem.GetBlockWithName("Debug Panel") as IMyTextPanel;
+            debugPanel = GridTerminalSystem.GetBlockWithName("Debug Panel") as IMyTextPanel;
 
-                mainStateMaschine = CreateStateMaschine(debugPanel);
-                debugPanel.WritePublicText("Main is ready \n", true);
-                currentState = State.Idle;
-                currentMState = MState.Working;
+            mainStateMaschine = CreateStateMaschine(debugPanel);
+            debugPanel.WritePublicText("Main is ready \n", true);
+            currentState = State.Idle;
+            currentMState = MState.Working;
+
+            List<IMyGravityGenerator> Dis = new List<IMyGravityGenerator>();
+            GridTerminalSystem.GetBlocksOfType(Dis, x => x.CustomName == "Gravity Generator Dis");
+            GGDis = new GeneratorsUni(Dis, 20, 15, 10);
+
+            List<IMyGravityGenerator> RL = new List<IMyGravityGenerator>();
+            GridTerminalSystem.GetBlocksOfType(RL, x => x.CustomName == "Gravity Generator le/ri");
+            GGRL = new GeneratorsUni(RL, 30, 13.6f, 10);
+
+            UpDown[0, 0] = GridTerminalSystem.GetBlockWithName("Gravity Generator up/do FR")as IMyGravityGenerator;
+            UpDown[0, 1] = GridTerminalSystem.GetBlockWithName("Gravity Generator up/do FL") as IMyGravityGenerator;
+            UpDown[1, 0] = GridTerminalSystem.GetBlockWithName("Gravity Generator up/do BR") as IMyGravityGenerator;
+            UpDown[1, 1] = GridTerminalSystem.GetBlockWithName("Gravity Generator up/do BL") as IMyGravityGenerator;
+            List<IMyGravityGenerator> UpDo = new List<IMyGravityGenerator>();
+            foreach (IMyGravityGenerator gg in UpDown)
+                UpDo.Add(gg);
+            GGUuDo = new GeneratorsUni(Dis, 10, 30, 7.5f);
+
+            List<Gravity> Fr = new List<Gravity>();
+            List<Gravity> Ba = new List<Gravity>();
+            Fr.Add(new Gravity(GridTerminalSystem.GetBlockWithName("Gravity Generator fr 1 +") as IMyGravityGenerator, 6, 16, 35));
+            Ba.Add(new Gravity(GridTerminalSystem.GetBlockWithName("Gravity Generator ba 1 +") as IMyGravityGenerator, 6, 16, 35));
+            Fr.Add(new Gravity(GridTerminalSystem.GetBlockWithName("Gravity Generator fr 2 -") as IMyGravityGenerator, 3, 17, 30));
+            Ba.Add(new Gravity(GridTerminalSystem.GetBlockWithName("Gravity Generator ba 2 -") as IMyGravityGenerator, 3, 17, 30));
+            Fr.Add(new Gravity(GridTerminalSystem.GetBlockWithName("Gravity Generator fr 3 +") as IMyGravityGenerator, 8, 11, 30));
+            Ba.Add(new Gravity(GridTerminalSystem.GetBlockWithName("Gravity Generator ba 3 +") as IMyGravityGenerator, 8, 11, 30));
+
+            GGFr = new GeneratorsDiv(Fr);
+            GGBa = new GeneratorsDiv(Ba);
+
+            HangarSensor = GridTerminalSystem.GetBlockWithName("Sensor Hangar") as IMySensorBlock;
 
         }
 
