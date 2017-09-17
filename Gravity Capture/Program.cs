@@ -52,6 +52,9 @@ namespace IngameScript
             CodeTriggerTimer = GridTerminalSystem.GetBlockWithName("StateMaschine Timer") as IMyTimerBlock;
             GridTerminalSystem.GetBlocksOfType(outputPanels, x => x.CustomName.Contains("Output"));
             mainStateMaschine = CreateStateMaschine();
+            string def = outputPanels[0].DetailedInfo;
+            Echo(def);
+            return;
             foreach (IMyTextPanel lcd in outputPanels)
             {
                 lcd.WritePublicText("");
@@ -114,7 +117,8 @@ namespace IngameScript
         public void Main(string argument)
         {
             stopCodeTriggerTimer();
-            
+            string def = outputPanels[0].DetailedInfo;
+            Echo(def);
             
             
 
@@ -270,7 +274,7 @@ namespace IngameScript
             {
                 lcd.WritePublicText(currentText);
             }
-            
+        }
             
         public void Capture()
         {
