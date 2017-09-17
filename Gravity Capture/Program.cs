@@ -27,9 +27,6 @@ namespace IngameScript
         List<IMyGravityGeneratorBase> Rota1 = new List<IMyGravityGeneratorBase>();
         List<IMyGravityGeneratorBase> Rota2 = new List<IMyGravityGeneratorBase>();
 
-        //Declaring MStates (MaschineStates)
-        public enum MState { Working, WaitingTime, WaitingExternalEvent };
-
         
         List<IMyTextPanel> outputPanels = new List<IMyTextPanel>();
         bool debugEnabled = false;
@@ -259,7 +256,7 @@ namespace IngameScript
                 lcd.WritePublicText("Current State : " + currentState.ToString() + "\n");
                 lcd.WritePublicText("Current Status : " + status + "\n", true);
                 lcd.WritePublicText("Status Hangar Doors : " + hangarsOpen + "\n\n", true);
-                lcd.WritePublicText("==========Recent Updates================\n", true);
+                lcd.WritePublicText("==========Recent Updates========================================================================\n", true);
             }
             else
             {
@@ -269,7 +266,7 @@ namespace IngameScript
                 lcd.WritePublicText("Current State : " + currentState.ToString() + "\n");
                 lcd.WritePublicText("Current Status : " + status + "\n", true);
                 lcd.WritePublicText("Status Hangar Doors : " + hangarsOpen + "\n\n", true);
-                lcd.WritePublicText("==========Recent Updates================\n", true);
+                lcd.WritePublicText("==========Recent Updates========================================================================\n", true);
                 lcd.WritePublicText(updateText, true);
             }
 
