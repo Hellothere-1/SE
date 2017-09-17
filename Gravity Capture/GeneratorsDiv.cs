@@ -24,7 +24,6 @@ namespace IngameScript
 
             public GeneratorsDiv(List<Gravity> generators)
             {
-
                 Generators = generators;
             }
             public void SetGravity(float value)

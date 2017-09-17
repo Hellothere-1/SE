@@ -20,7 +20,7 @@ namespace IngameScript
 {
     partial class Program : MyGridProgram
     {
-        List<IMyGravityGeneratorBase> FrBa = new List<IMyGravityGeneratorBase>();
+        public List<IMyGravityGeneratorBase> FrBa = new List<IMyGravityGeneratorBase>();
         List<IMyGravityGeneratorBase> LeRi = new List<IMyGravityGeneratorBase>();
         List<IMyGravityGeneratorBase> UpDo = new List<IMyGravityGeneratorBase>();
         List<IMyGravityGeneratorBase> Shield = new List<IMyGravityGeneratorBase>();
@@ -46,7 +46,7 @@ namespace IngameScript
         GeneratorsDiv GGBa;
 
         IMySensorBlock HangarSensor;
-
+        IMyShipController Reference;
 
 
         public Program()
@@ -61,14 +61,14 @@ namespace IngameScript
             currentMState = MState.Working;
 
             List<IMyGravityGenerator> Dis = new List<IMyGravityGenerator>();
-            GridTerminalSystem.GetBlocksOfType(Dis, x => x.CustomName == "Gravity Generator Dis");
+            GridTerminalSystem.GetBlocksOfType(Dis, x => x.CustomName.Contains("Gravity Generator DIS"));
             GGDis = new GeneratorsUni(Dis, 20, 15, 10);
-
+            
             List<IMyGravityGenerator> RL = new List<IMyGravityGenerator>();
-            GridTerminalSystem.GetBlocksOfType(RL, x => x.CustomName == "Gravity Generator le/ri");
+            GridTerminalSystem.GetBlocksOfType(RL, x => x.CustomName.Contains("Gravity Generator le/ri"));
             GGRL = new GeneratorsUni(RL, 30, 13.6f, 10);
-
-            UpDown[0, 0] = GridTerminalSystem.GetBlockWithName("Gravity Generator up/do FR")as IMyGravityGenerator;
+            
+            UpDown[0, 0] = GridTerminalSystem.GetBlockWithName("Gravity Generator up/do FR") as IMyGravityGenerator;
             UpDown[0, 1] = GridTerminalSystem.GetBlockWithName("Gravity Generator up/do FL") as IMyGravityGenerator;
             UpDown[1, 0] = GridTerminalSystem.GetBlockWithName("Gravity Generator up/do BR") as IMyGravityGenerator;
             UpDown[1, 1] = GridTerminalSystem.GetBlockWithName("Gravity Generator up/do BL") as IMyGravityGenerator;
@@ -76,7 +76,7 @@ namespace IngameScript
             foreach (IMyGravityGenerator gg in UpDown)
                 UpDo.Add(gg);
             GGUuDo = new GeneratorsUni(Dis, 10, 30, 7.5f);
-
+            
             List<Gravity> Fr = new List<Gravity>();
             List<Gravity> Ba = new List<Gravity>();
             Fr.Add(new Gravity(GridTerminalSystem.GetBlockWithName("Gravity Generator fr 1 +") as IMyGravityGenerator, 6, 16, 35));
@@ -89,8 +89,10 @@ namespace IngameScript
             GGFr = new GeneratorsDiv(Fr);
             GGBa = new GeneratorsDiv(Ba);
 
-            HangarSensor = GridTerminalSystem.GetBlockWithName("Sensor Hangar") as IMySensorBlock;
+           
 
+            HangarSensor = GridTerminalSystem.GetBlockWithName("Sensor Hangar") as IMySensorBlock;
+            Reference = GridTerminalSystem.GetBlockWithName("Hangar Reference") as IMyShipController;
         }
 
         public void Save()
@@ -105,6 +107,7 @@ namespace IngameScript
 
         public void Main(string argument)
         {
+            Capture();
             switch (currentMState)
             {
                 case MState.Working:
@@ -146,9 +149,15 @@ namespace IngameScript
                     break;
                 default:
                     break;
-            }
-                
-            
+            } 
+        }
+        public void Capture()
+        {
+            Vector3D positon = HangarSensor.LastDetectedEntity.Position-Reference.GetPosition();
+            Echo(Convert.ToString(positon.X));
+            Echo(Convert.ToString(positon.Y));
+            Echo(Convert.ToString(positon.Z));
+
         }
     }
 }
