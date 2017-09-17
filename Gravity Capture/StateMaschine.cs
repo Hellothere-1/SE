@@ -18,69 +18,39 @@ namespace IngameScript
 {
     partial class Program
     {
-        public enum State { None = 0, Idle, CatchShip, ShipInHangar, Eject, CraftDetected, CraftCatched };
-        public enum Conditions { None, Time, ExternalTrigger };
-
-        //Setting Flags as Instructions for multiple Data in one
-        [Flags]
-        public enum Instructions
-        {
-            None                = 0x00,
-            ResetFieldValue     = 0x01,
-            SetFieldValue       = 0x02,
-            PowerOn             = 0x04,
-            PowerOff            = 0x08,
-            SetStrength         = 0x16,
-            SetDynamicStrength  = 0x32,
-            NegateStrength      = 0x64
-        };
+        public enum State { None = 0, Idle, OpenHangar, LaunchShip, CaptureShip};
 
         public class StateMaschine
         {
             public State currentState;
             public State nextState;
-            public Instructions[] instructions;
-            public Conditions conditionForNextState;
-            public Object[] InstructionData;
-            public float ConditionTime;
+            public bool waitForTrigger;
         }
 
-        public void FillStateTableEntry(StateMaschine entry, State current, State next, Instructions[] instr, Conditions conds, Object[] data, float time)
+        public void FillStateTableEntry(StateMaschine entry, State current, State next, bool wait)
         {
             entry.currentState = current;
             entry.nextState = next;
-            entry.instructions = instr;
-            entry.conditionForNextState = conds;
-            entry.InstructionData = data;
-            entry.ConditionTime = time;
+            entry.waitForTrigger = wait;
         }
 
         public void FillStateTable(StateMaschine[] state_table)
         {   //TODO extend for all states 
-            FillStateTableEntry(state_table[0], State.Idle, State.None, null, Conditions.ExternalTrigger, null, 0);
-            FillStateTableEntry(state_table[1], State.CatchShip, State.None, null, Conditions.ExternalTrigger, null, 0);
-            FillStateTableEntry(state_table[2], State.ShipInHangar, State.None, null, Conditions.ExternalTrigger, null, 0);
-            FillStateTableEntry(state_table[3], State.Eject, State.Idle, null, Conditions.Time, null, 4);
-            FillStateTableEntry(state_table[4], State.CraftDetected, State.CraftCatched, null, Conditions.Time, null, 6);
-            FillStateTableEntry(state_table[5], State.CraftCatched, State.None, null, Conditions.ExternalTrigger, null, 0);
+            FillStateTableEntry(state_table[0], State.Idle, State.OpenHangar, true);
+            FillStateTableEntry(state_table[1], State.OpenHangar, State.None, false);
+            FillStateTableEntry(state_table[2], State.LaunchShip, State.OpenHangar, true);
+            FillStateTableEntry(state_table[3], State.CaptureShip, State.OpenHangar, true);
         }
 
         public StateMaschine[] CreateStateMaschine(IMyTextPanel debugPanel)
         {
-            debugPanel.WritePublicText("Starting Setup \n", false);
-            StateMaschine[] stateMaschine = new StateMaschine[6];
-            for (int i = 0; i < 4; i++)
+            int lengthStateTable = Enum.GetNames(typeof(State)).Length;
+            StateMaschine[] stateMaschine = new StateMaschine[lengthStateTable];
+            for (int i = 0; i < lengthStateTable; i++)
             {
                 stateMaschine[i] = new StateMaschine();
             }
-            debugPanel.WritePublicText("Created State Maschine\n", true);
-            if (stateMaschine[0] == null)
-            {
-                debugPanel.WritePublicText("Is empty \n", true);
-                return null;
-            }
             FillStateTable(stateMaschine);
-            debugPanel.WritePublicText("Filled State Maschine \n", true);
             return stateMaschine;
         }
     }

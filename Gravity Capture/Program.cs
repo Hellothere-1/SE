@@ -28,28 +28,32 @@ namespace IngameScript
         List<IMyGravityGeneratorBase> Rota2 = new List<IMyGravityGeneratorBase>();
 
         //Declaring MStates (MaschineStates)
-        enum MState { Working, WaitingTime, WaitingExternalEvent };
+        public enum MState { Working, WaitingTime, WaitingExternalEvent };
 
 
         IMyTextPanel debugPanel;
+        bool debugEnabled = false;
+        bool running;
         IMyTimerBlock scriptTimer;
         StateMaschine[] mainStateMaschine;
         State currentState;
-        MState currentMState;
-        float waitTime;
-        string awaitedTrigger;
         
         
         
 
         public Program()
         {
-            // The constructor, called only once every session and
-            // always before any other method is called. Use it to
-            // initialize your script. 
-            //     
-            // The constructor is optional and can be removed if not
-            // needed.
+            scriptTimer = GridTerminalSystem.GetBlockWithName("Script Timer") as IMyTimerBlock;
+            debugPanel = GridTerminalSystem.GetBlockWithName("Debug Panel") as IMyTextPanel;
+            mainStateMaschine = CreateStateMaschine(debugPanel);
+            if (mainStateMaschine == null)
+            {
+                debugPanel.WritePublicText("Error : StateMaschine could not be initialized");
+                return;
+            }
+            debugPanel.WritePublicText("StateMaschine is ready \n");
+            currentState = State.Idle;
+            running = true;
         }
 
         public void Save()
@@ -64,74 +68,106 @@ namespace IngameScript
 
         public void Main(string argument)
         {
-            if (scriptTimer == null)
+            if (running)
             {
-                scriptTimer = GridTerminalSystem.GetBlockWithName("Script Timer") as IMyTimerBlock;
-            }
-            if (debugPanel == null)
-            {
-                debugPanel = GridTerminalSystem.GetBlockWithName("Debug Panel") as IMyTextPanel;
-            }
-            if (mainStateMaschine == null)
-            {
-                mainStateMaschine = CreateStateMaschine(debugPanel);
-                debugPanel.WritePublicText("Main is ready \n", true);
-                currentState = State.Idle;
-                currentMState = MState.Working;
-            }
-            switch (currentMState)
-            {
-                case MState.WaitingTime:
-                    if (argument == "timerTrigger")
-                    {
-                        currentState = mainStateMaschine[(int)currentState - 1].nextState;
-                        currentMState = MState.Working;
-                    }
-                    break;
-                case MState.Working:
-                    debugPanel.WritePublicText(("Current State is " + mainStateMaschine[(int)currentState - 1].currentState + "\n"), true);
-                    switch (mainStateMaschine[(int)currentState - 1].conditionForNextState)
-                    {
-                        case Conditions.None:
-                            debugPanel.WritePublicText(("Switching to state " + mainStateMaschine[(int)currentState - 1].nextState + "\n"), true);
-                            currentState = mainStateMaschine[(int)currentState - 1].nextState;
-                            break;
-                        case Conditions.Time:
-                            waitTime = mainStateMaschine[(int)currentState - 1].ConditionTime;
-                            scriptTimer.TriggerDelay = waitTime;
-                            scriptTimer.StartCountdown();
-                            debugPanel.WritePublicText(("Waiting for switch in " + waitTime +" seconds\n"), true);
-                            currentMState = MState.WaitingTime;
-                            break;
-                        case Conditions.ExternalTrigger:
-                            awaitedTrigger = (mainStateMaschine[(int)currentState - 1].currentState.ToString() + "_");
-                            debugPanel.WritePublicText(("Waiting for switch with trigger " + awaitedTrigger + "nextState\n"), true);
-                            currentMState = MState.WaitingExternalEvent;
-                            break;
-                    }
-                    
-                    break;
-                case MState.WaitingExternalEvent:
-                    if (argument.StartsWith(awaitedTrigger))
-                    {
-                        string compare = argument.Split('_')[1];
-                        try
-                        {
-                            currentState = (State)Enum.Parse(typeof(State), compare);
-                            currentMState = MState.Working;
-                        }
-                        catch (ArgumentException)
-                        {
-                            debugPanel.WritePublicText(("Error : " + compare + " nicht als State vorhanden\n"), true);
-                        }
-                        
-                    }
-                    break;
-                default:
-                    break;
-            }
+                //TODO execute the code
+
+
+                //Switch State Block
+                if (mainStateMaschine[(int)currentState - 1].waitForTrigger)
+                {
+                    //Get into waiting mode
+                    running = false;
+                    //-------------------------------
+
+                    debugPanel.WritePublicText(("Changing into waiting mode\n"), true);
+
+                    return;
+                }
+                if (mainStateMaschine[(int)currentState - 1].nextState == State.None)
+                {
+                    //Start Timer for reset to Idle
+                    scriptTimer.TriggerDelay = 60;
+                    scriptTimer.StartCountdown();
+                    //-------------------------------
+
+                    //Get into waiting mode
+                    running = false;
+                    //-------------------------------
+
+                    debugPanel.WritePublicText(("Changing into waiting mode + activated Timeout(60s)\n"), true);
+                    return;
+                }
+                else
+                {
+                    //Getting into the next state
+                    currentState = mainStateMaschine[(int)currentState - 1].nextState;
+                    mainStateMaschine[(int)State.OpenHangar - 1].nextState = State.None;
+                    //-------------------------------
+                    debugPanel.WritePublicText(("Switched to " + currentState.ToString() + "\n"), true);
+                    return;
+                }
                 
-            
+            }
+            else
+            {
+                
+                bool inputValid = false;
+                //Returning if argument is null
+                if (argument == "")
+                {
+                    return;
+                }
+                //--------------------------------
+                debugPanel.WritePublicText(("Input is " + argument + "\n"), true);
+                //Normal state change by checking if form currentState_nextState
+                string[] parts = argument.Split('_');
+                if (parts[0] == mainStateMaschine[(int)currentState - 1].currentState.ToString())
+                {
+                    try
+                    {
+                        currentState = (State)Enum.Parse(typeof(State), parts[1]);
+                        running = true;
+                        inputValid = true;
+                    }
+                    catch (ArgumentException)
+                    {
+                        debugPanel.WritePublicText(("Error : " + parts[1] + " nicht als State vorhanden\n"), true);
+                        return;
+                    }
+                }
+                //-----------------------------------------
+                //Special repeated state change if form *_OpenHangar_nextState
+                if (parts[1] == "OpenHangar" && currentState == State.OpenHangar && parts.Length == 3)
+                {
+                    try
+                    {
+                        mainStateMaschine[(int)currentState - 1].nextState = (State)Enum.Parse(typeof(State), parts[2]);
+                        scriptTimer.StopCountdown();
+                        running = true;
+                        inputValid = true;
+                    }
+                    catch (ArgumentException)
+                    {
+                        debugPanel.WritePublicText(("Error : " + parts[2] + " nicht als State vorhanden\n"), true);
+                        return;
+                    }
+                }
+                //---------------------------------------------
+
+                //Printing error for wrong input
+                if (!inputValid)
+                {
+                    debugPanel.WritePublicText(("Input " + argument + " is not valid for this code\n"), true);
+                }
+                //----------------------------------------------
+
+            }
+        }
+
+        public void ForceNextState()
+        {
+            currentState = mainStateMaschine[(int)currentState - 1].nextState;
         }
     }
 }
