@@ -30,11 +30,13 @@ namespace IngameScript
         //Declaring MStates (MaschineStates)
         public enum MState { Working, WaitingTime, WaitingExternalEvent };
 
-
-        IMyTextPanel debugPanel;
+        
+        List<IMyTextPanel> outputPanels = new List<IMyTextPanel>();
         bool debugEnabled = false;
+        bool statusHangarDoors = false;
         bool running;
         IMyTimerBlock scriptTimer;
+        IMyTimerBlock CodeTriggerTimer;
         StateMaschine[] mainStateMaschine;
         State currentState;
         
@@ -44,16 +46,23 @@ namespace IngameScript
         public Program()
         {
             scriptTimer = GridTerminalSystem.GetBlockWithName("Script Timer") as IMyTimerBlock;
-            debugPanel = GridTerminalSystem.GetBlockWithName("Debug Panel") as IMyTextPanel;
-            mainStateMaschine = CreateStateMaschine(debugPanel);
+            CodeTriggerTimer = GridTerminalSystem.GetBlockWithName("StateMaschine Timer") as IMyTimerBlock;
+            GridTerminalSystem.GetBlocksOfType(outputPanels, x => x.CustomName.Contains("Output"));
+            mainStateMaschine = CreateStateMaschine();
+            foreach (IMyTextPanel lcd in outputPanels)
+            {
+                lcd.WritePublicText("");
+                updateHead(lcd, "Ready", "Closed");
+            }
             if (mainStateMaschine == null)
             {
-                debugPanel.WritePublicText("Error : StateMaschine could not be initialized");
+                logOnScreen("Error : StateMaschine could not be initialized");
                 return;
             }
-            debugPanel.WritePublicText("StateMaschine is ready \n");
             currentState = State.Idle;
             running = true;
+            startCodeTriggerTimer();
+            
         }
 
         public void Save()
@@ -68,9 +77,20 @@ namespace IngameScript
 
         public void Main(string argument)
         {
+            stopCodeTriggerTimer();
+            
+            
+            
+
+            
             if (running)
             {
                 //TODO execute the code
+
+
+                
+
+
 
 
                 //Switch State Block
@@ -80,8 +100,8 @@ namespace IngameScript
                     running = false;
                     //-------------------------------
 
-                    debugPanel.WritePublicText(("Changing into waiting mode\n"), true);
-
+                    logOnScreen("Changing into waiting mode\n");
+                    updateLogHead();
                     return;
                 }
                 if (mainStateMaschine[(int)currentState - 1].nextState == State.None)
@@ -95,7 +115,8 @@ namespace IngameScript
                     running = false;
                     //-------------------------------
 
-                    debugPanel.WritePublicText(("Changing into waiting mode + activated Timeout(60s)\n"), true);
+                    logOnScreen("Changing into waiting mode + activated Timeout(60s)\n");
+                    updateLogHead();
                     return;
                 }
                 else
@@ -104,7 +125,10 @@ namespace IngameScript
                     currentState = mainStateMaschine[(int)currentState - 1].nextState;
                     mainStateMaschine[(int)State.OpenHangar - 1].nextState = State.None;
                     //-------------------------------
-                    debugPanel.WritePublicText(("Switched to " + currentState.ToString() + "\n"), true);
+
+                    logOnScreen("Switched to " + currentState.ToString() + "\n");
+                    updateLogHead();
+                    startCodeTriggerTimer();
                     return;
                 }
                 
@@ -119,7 +143,7 @@ namespace IngameScript
                     return;
                 }
                 //--------------------------------
-                debugPanel.WritePublicText(("Input is " + argument + "\n"), true);
+
                 //Normal state change by checking if form currentState_nextState
                 string[] parts = argument.Split('_');
                 if (parts[0] == mainStateMaschine[(int)currentState - 1].currentState.ToString())
@@ -127,12 +151,16 @@ namespace IngameScript
                     try
                     {
                         currentState = (State)Enum.Parse(typeof(State), parts[1]);
+                        logOnScreen("Switched to " + currentState.ToString() + "\n");
                         running = true;
+                        startCodeTriggerTimer();
                         inputValid = true;
+                        updateLogHead();
                     }
                     catch (ArgumentException)
                     {
-                        debugPanel.WritePublicText(("Error : " + parts[1] + " nicht als State vorhanden\n"), true);
+                        logOnScreen("Error : " + parts[1] + " nicht als State vorhanden\n");
+                        updateLogHead();
                         return;
                     }
                 }
@@ -145,11 +173,14 @@ namespace IngameScript
                         mainStateMaschine[(int)currentState - 1].nextState = (State)Enum.Parse(typeof(State), parts[2]);
                         scriptTimer.StopCountdown();
                         running = true;
+                        startCodeTriggerTimer();
                         inputValid = true;
+                        updateLogHead();
                     }
                     catch (ArgumentException)
                     {
-                        debugPanel.WritePublicText(("Error : " + parts[2] + " nicht als State vorhanden\n"), true);
+                        logOnScreen("Error : " + parts[2] + " nicht als State vorhanden\n");
+                        updateLogHead();
                         return;
                     }
                 }
@@ -158,16 +189,101 @@ namespace IngameScript
                 //Printing error for wrong input
                 if (!inputValid)
                 {
-                    debugPanel.WritePublicText(("Input " + argument + " is not valid for this code\n"), true);
+                    logOnScreen("Input " + argument + " is not valid for this code\n");
+                    updateLogHead();
                 }
                 //----------------------------------------------
 
             }
         }
 
+
+        //Called by script to get out of CaptureShip/LaunchShip
         public void ForceNextState()
         {
             currentState = mainStateMaschine[(int)currentState - 1].nextState;
         }
+        //-----------------------------------------------------
+
+
+        //Called by script to stop the timer to avoid double calls
+        public void stopCodeTriggerTimer()
+        {
+            CodeTriggerTimer.StopCountdown();
+        }
+        //----------------------------------------------------
+
+
+        //Called by script to reset timerdelay and start it
+        public void startCodeTriggerTimer()
+        {
+            CodeTriggerTimer.Trigger();
+            CodeTriggerTimer.TriggerDelay = 1;
+            CodeTriggerTimer.StartCountdown();
+        }
+
+
+
+
+        public void logOnScreen(string logMessage)
+        {
+            string currentText = outputPanels[0].GetPublicText();
+            int index = findEndOfLogHead(currentText);
+            currentText = currentText.Insert(index, logMessage);
+            foreach (IMyTextPanel lcd in outputPanels)
+            {
+                lcd.WritePublicText(currentText);
+            }
+            
+        }
+
+
+        public void updateLogHead()
+        {
+            string hangardoors = statusHangarDoors ? "Open" : "Closed";
+            string status = running ? "Running" : "Waiting";
+            foreach (IMyTextPanel lcd in outputPanels)
+            {
+                updateHead(lcd, status, hangardoors);
+            }
+            
+        }
+
+
+        public void updateHead(IMyTextPanel lcd, string status, string hangarsOpen)
+        {
+            
+            string currentText = lcd.GetPublicText();
+            if (currentText == "")
+            {
+                lcd.WritePublicText("Current State : " + currentState.ToString() + "\n");
+                lcd.WritePublicText("Current Status : " + status + "\n", true);
+                lcd.WritePublicText("Status Hangar Doors : " + hangarsOpen + "\n\n", true);
+                lcd.WritePublicText("==========Recent Updates================\n", true);
+            }
+            else
+            {
+                string updateText = "";
+                int index = findEndOfLogHead(currentText);
+                updateText = currentText.Substring(index);
+                lcd.WritePublicText("Current State : " + currentState.ToString() + "\n");
+                lcd.WritePublicText("Current Status : " + status + "\n", true);
+                lcd.WritePublicText("Status Hangar Doors : " + hangarsOpen + "\n\n", true);
+                lcd.WritePublicText("==========Recent Updates================\n", true);
+                lcd.WritePublicText(updateText, true);
+            }
+
+            
+        }
+
+
+        public int findEndOfLogHead(string currentText)
+        {
+            int index = currentText.IndexOf("Recent Updates");
+            index = currentText.IndexOf("\n", index) + 1;
+            return index;
+        }
+
+        
     }
 }

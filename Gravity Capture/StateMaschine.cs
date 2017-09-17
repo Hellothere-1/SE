@@ -42,7 +42,7 @@ namespace IngameScript
             FillStateTableEntry(state_table[3], State.CaptureShip, State.OpenHangar, true);
         }
 
-        public StateMaschine[] CreateStateMaschine(IMyTextPanel debugPanel)
+        public StateMaschine[] CreateStateMaschine()
         {
             int lengthStateTable = Enum.GetNames(typeof(State)).Length;
             StateMaschine[] stateMaschine = new StateMaschine[lengthStateTable];
