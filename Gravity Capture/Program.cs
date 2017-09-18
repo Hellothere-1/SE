@@ -69,11 +69,11 @@ namespace IngameScript
             //Check if logic part is missing------------------------------------------
             if (scriptTimer == null || CodeTriggerTimer == null || mainStateMaschine == null)
             {
-                lcdHandler.logMessage("State Maschine or/and Timers not found, are the names correct?", "ERROR");
+                lcdHandler.logMessage("State Maschine or/and Timers not found, are the names correct?", Labels.ERROR);
             }
             else
             {
-                lcdHandler.logMessage("State Maschine and Timers found and activ");
+                lcdHandler.logMessage("State Maschine and Timers found and activ", Labels.BOOTUP);
             }
             //---------------------------------------------------------------------------
             
@@ -110,12 +110,12 @@ namespace IngameScript
                 GGUuDo = new GeneratorsUni(Dis, 10, 30, 7.5f);
                 GGFr = new GeneratorsDiv(Fr);
                 GGBa = new GeneratorsDiv(Ba);
-                lcdHandler.logMessage("GGs found and activ");
+                lcdHandler.logMessage("GGs found and activ", Labels.BOOTUP);
                 GGEnabled = true;
             }
             catch (NullReferenceException)
             {
-                lcdHandler.logMessage("GGs could not be enabled, GG missing", "ERROR");
+                lcdHandler.logMessage("GGs could not be enabled, GG missing", Labels.ERROR);
             }
             //-------------------------------------------------------------------------------
             
@@ -126,7 +126,7 @@ namespace IngameScript
             Reference = GridTerminalSystem.GetBlockWithName("Hangar Reference") as IMyShipController;
             if (HangarSensor == null || Reference == null)
             {
-                lcdHandler.logMessage("GGs could not be enabled, Sensor or/and Hangar Reference missing", "ERROR");
+                lcdHandler.logMessage("GGs could not be enabled, Sensor or/and Hangar Reference missing", Labels.ERROR);
             }
             //--------------------------------------------------------------------------------
 
@@ -182,7 +182,7 @@ namespace IngameScript
                     mainStateMaschine[(int)State.OpenHangar - 1].nextState = State.None;
                     //-------------------------------
 
-                    lcdHandler.logMessage("Switched to " + currentState.ToString());
+                    lcdHandler.logMessage("Switched to " + currentState.ToString(), Labels.STATE);
                     startCodeTriggerTimer();
                 }
                 lcdHandler.logHeadOnScreen(currentState, running, statusHangarDoors);
@@ -196,7 +196,7 @@ namespace IngameScript
                     return;
                 }
                 //--------------------------------
-                lcdHandler.logMessage("Input is " + argument);
+                lcdHandler.logMessage("Input is " + argument, Labels.DEBUG);
                 //Normal state change by checking if form currentState_nextState
                 string[] parts = argument.Split('_');
                 try
@@ -206,14 +206,14 @@ namespace IngameScript
                         try
                         {
                             currentState = (State)Enum.Parse(typeof(State), parts[1]);
-                            lcdHandler.logMessage("Switched to " + currentState.ToString());
+                            lcdHandler.logMessage("Switched to " + currentState.ToString(), Labels.STATE);
                             running = true;
                             startCodeTriggerTimer();
                             inputValid = true;
                         }
                         catch (ArgumentException)
                         {
-                            lcdHandler.logMessage("Error : " + parts[1] + " nicht als State vorhanden", "WARNING");
+                            lcdHandler.logMessage("Error : " + parts[1] + " nicht als State vorhanden", Labels.WARNING);
                             return;
                         }
                     }
@@ -233,7 +233,7 @@ namespace IngameScript
                         }
                         catch (ArgumentException)
                         {
-                            lcdHandler.logMessage("Error : " + parts[2] + " nicht als State vorhanden", "WARNING");
+                            lcdHandler.logMessage("Error : " + parts[2] + " nicht als State vorhanden", Labels.WARNING);
                             return;
                         }
                     }
@@ -241,13 +241,13 @@ namespace IngameScript
                 }
                 catch (Exception e)
                 {
-                    lcdHandler.logMessage(e.ToString(), "ERROR");
+                    lcdHandler.logMessage(e.ToString(), Labels.ERROR);
                 }
 
                 //Printing error for wrong input
                 if (!inputValid)
                 {
-                    lcdHandler.logMessage("Input " + argument + " is not valid for this code", "WARNING");
+                    lcdHandler.logMessage("Input " + argument + " is not valid for this code", Labels.WARNING);
                 }
                 else
                 {
