@@ -20,87 +20,167 @@ namespace IngameScript
 {
     partial class Program : MyGridProgram
     {
-        public List<IMyGravityGeneratorBase> FrBa = new List<IMyGravityGeneratorBase>();
-        List<IMyGravityGeneratorBase> LeRi = new List<IMyGravityGeneratorBase>();
-        List<IMyGravityGeneratorBase> UpDo = new List<IMyGravityGeneratorBase>();
-        List<IMyGravityGeneratorBase> Shield = new List<IMyGravityGeneratorBase>();
-        List<IMyGravityGeneratorBase> Rota1 = new List<IMyGravityGeneratorBase>();
-        List<IMyGravityGeneratorBase> Rota2 = new List<IMyGravityGeneratorBase>();
 
-        
+        bool logEnabled = false;
+        bool GGEnabled = false;
+
+        //Logic of StateMaschine------------------------------
         List<IMyTextPanel> outputPanels = new List<IMyTextPanel>();
-        bool debugEnabled = false;
         bool statusHangarDoors = false;
         bool running;
         IMyTimerBlock scriptTimer;
         IMyTimerBlock CodeTriggerTimer;
         StateMaschine[] mainStateMaschine;
         State currentState;
+        //-----------------------------------------------------
+
+        //Groups of GG-----------------------------------------
+        public List<IMyGravityGeneratorBase> FrBa = new List<IMyGravityGeneratorBase>();
+        List<IMyGravityGeneratorBase> LeRi = new List<IMyGravityGeneratorBase>();
+        List<IMyGravityGeneratorBase> UpDo = new List<IMyGravityGeneratorBase>();
+        List<IMyGravityGeneratorBase> Shield = new List<IMyGravityGeneratorBase>();
+        List<IMyGravityGeneratorBase> Rota1 = new List<IMyGravityGeneratorBase>();
+        List<IMyGravityGeneratorBase> Rota2 = new List<IMyGravityGeneratorBase>();
         IMyGravityGenerator[,] UpDown=new IMyGravityGenerator[2,2];
         GeneratorsUni GGDis;
         GeneratorsUni GGRL;
         GeneratorsUni GGUuDo;
         GeneratorsDiv GGFr;
         GeneratorsDiv GGBa;
+        //------------------------------------------------------
+
 
         IMySensorBlock HangarSensor;
         IMyShipController Reference;
 
+
         public Program()
         {
+            //Initialize logic for state maschine ------------------------------------
             scriptTimer = GridTerminalSystem.GetBlockWithName("Script Timer") as IMyTimerBlock;
             CodeTriggerTimer = GridTerminalSystem.GetBlockWithName("StateMaschine Timer") as IMyTimerBlock;
             GridTerminalSystem.GetBlocksOfType(outputPanels, x => x.CustomName.Contains("Output"));
             mainStateMaschine = CreateStateMaschine();
-            string def = outputPanels[0].DetailedInfo;
-            Echo(def);
-            return;
-            foreach (IMyTextPanel lcd in outputPanels)
-            {
-                lcd.WritePublicText("");
-                updateHead(lcd, "Ready", "Closed");
-            }
-            if (mainStateMaschine == null)
-            {
-                logOnScreen("Error : StateMaschine could not be initialized");
-                return;
-            }
             currentState = State.Idle;
             running = true;
+            //------------------------------------------------------------------------
 
+            //Check if logic part is missing------------------------------------------
+            if (outputPanels.Count() == 0)
+            {
+                //Deactivate logging, print echo
+                logEnabled = false;
+                Echo("Output Panels missing, create a LCD/Text Panel with *Output* in the Name");
+            }
+            else
+            {
+                logEnabled = true;
+                foreach (IMyTextPanel lcd in outputPanels)
+                {
+                    lcd.WritePublicText("");
+                    updateHead(lcd, "Ready", "Closed");
+                }
+                logOnScreen("Output display found, logging activated\n");
+            }
+            if (scriptTimer == null || CodeTriggerTimer == null || mainStateMaschine == null)
+            {
+                if (logEnabled)
+                {
+                    logOnScreen("State Maschine could not be initialized, maybe a timer is not named correctly\n");
+                }
+                else
+                {
+                    Echo("State Maschine could not be initialized, maybe a timer is not named correctly");
+                }
+            }
+            else
+            {
+                if (logEnabled)
+                {
+                    logOnScreen("State Maschine and Timers found and activ\n");
+                }
+                else
+                {
+                    Echo("State Maschine and Timers found and activ");
+                }
+            }
+            //---------------------------------------------------------------------------
+            
+            //Getting all GG at once to check if they are there--------------------------
             List<IMyGravityGenerator> Dis = new List<IMyGravityGenerator>();
             GridTerminalSystem.GetBlocksOfType(Dis, x => x.CustomName.Contains("Gravity Generator DIS"));
-            GGDis = new GeneratorsUni(Dis, 20, 15, 10);
-            
             List<IMyGravityGenerator> RL = new List<IMyGravityGenerator>();
             GridTerminalSystem.GetBlocksOfType(RL, x => x.CustomName.Contains("Gravity Generator le/ri"));
-            GGRL = new GeneratorsUni(RL, 30, 13.6f, 10);
-            
             UpDown[0, 0] = GridTerminalSystem.GetBlockWithName("Gravity Generator up/do FR") as IMyGravityGenerator;
             UpDown[0, 1] = GridTerminalSystem.GetBlockWithName("Gravity Generator up/do FL") as IMyGravityGenerator;
             UpDown[1, 0] = GridTerminalSystem.GetBlockWithName("Gravity Generator up/do BR") as IMyGravityGenerator;
             UpDown[1, 1] = GridTerminalSystem.GetBlockWithName("Gravity Generator up/do BL") as IMyGravityGenerator;
-            List<IMyGravityGenerator> UpDo = new List<IMyGravityGenerator>();
-            foreach (IMyGravityGenerator gg in UpDown)
-                UpDo.Add(gg);
-            GGUuDo = new GeneratorsUni(Dis, 10, 30, 7.5f);
-            
             List<Gravity> Fr = new List<Gravity>();
             List<Gravity> Ba = new List<Gravity>();
-            Fr.Add(new Gravity(GridTerminalSystem.GetBlockWithName("Gravity Generator fr 1 +") as IMyGravityGenerator, 6, 16, 35));
-            Ba.Add(new Gravity(GridTerminalSystem.GetBlockWithName("Gravity Generator ba 1 +") as IMyGravityGenerator, 6, 16, 35));
-            Fr.Add(new Gravity(GridTerminalSystem.GetBlockWithName("Gravity Generator fr 2 -") as IMyGravityGenerator, 3, 17, 30));
-            Ba.Add(new Gravity(GridTerminalSystem.GetBlockWithName("Gravity Generator ba 2 -") as IMyGravityGenerator, 3, 17, 30));
-            Fr.Add(new Gravity(GridTerminalSystem.GetBlockWithName("Gravity Generator fr 3 +") as IMyGravityGenerator, 8, 11, 30));
-            Ba.Add(new Gravity(GridTerminalSystem.GetBlockWithName("Gravity Generator ba 3 +") as IMyGravityGenerator, 8, 11, 30));
+            try
+            {
+                Fr.Add(new Gravity(GridTerminalSystem.GetBlockWithName("Gravity Generator fr 1 +") as IMyGravityGenerator, 6, 16, 35));
+                Ba.Add(new Gravity(GridTerminalSystem.GetBlockWithName("Gravity Generator ba 1 +") as IMyGravityGenerator, 6, 16, 35));
+                Fr.Add(new Gravity(GridTerminalSystem.GetBlockWithName("Gravity Generator fr 2 -") as IMyGravityGenerator, 3, 17, 30));
+                Ba.Add(new Gravity(GridTerminalSystem.GetBlockWithName("Gravity Generator ba 2 -") as IMyGravityGenerator, 3, 17, 30));
+                Fr.Add(new Gravity(GridTerminalSystem.GetBlockWithName("Gravity Generator fr 3 +") as IMyGravityGenerator, 8, 11, 30));
+                Ba.Add(new Gravity(GridTerminalSystem.GetBlockWithName("Gravity Generator ba 3 +") as IMyGravityGenerator, 8, 11, 30));
+                GGDis = new GeneratorsUni(Dis, 20, 15, 10);
+                GGRL = new GeneratorsUni(RL, 30, 13.6f, 10);
 
-            GGFr = new GeneratorsDiv(Fr);
-            GGBa = new GeneratorsDiv(Ba);
+                //TODO neuinitierung der liste nötig??
+                List<IMyGravityGenerator> UpDo = new List<IMyGravityGenerator>();
+                //------------------------------------
+                foreach (IMyGravityGenerator gg in UpDown)
+                {
+                    UpDo.Add(gg);
+                }
+                GGUuDo = new GeneratorsUni(Dis, 10, 30, 7.5f);
+                GGFr = new GeneratorsDiv(Fr);
+                GGBa = new GeneratorsDiv(Ba);
+                if (logEnabled)
+                {
+                    logOnScreen("GGs found and activ\n");
+                }
+                else
+                {
+                    Echo("GGs found and activ");
+                }
+            }
+            catch (NullReferenceException)
+            {
+                GGEnabled = false;
+                if (logEnabled)
+                {
+                    logOnScreen("GGs could not be enabled, GG missing\n");
+                }
+                else
+                {
+                    Echo("GGs could not be enabled, GG missing");
+                }
+            }
+            //-------------------------------------------------------------------------------
+            
 
-           
 
+            //Get control elements and check if they are missing------------------------------
             HangarSensor = GridTerminalSystem.GetBlockWithName("Sensor Hangar") as IMySensorBlock;
             Reference = GridTerminalSystem.GetBlockWithName("Hangar Reference") as IMyShipController;
+            if (HangarSensor == null || Reference == null)
+            {
+                GGEnabled = false;
+                if (logEnabled)
+                {
+                    logOnScreen("GGs could not be enabled, Sensor or/and Hangar Reference missing\n");
+                }
+                else
+                {
+                    Echo("GGs could not be enabled, Sensor or/and Hangar Reference missing");
+                }
+            }
+            //--------------------------------------------------------------------------------
+
+            //Start the main code
             startCodeTriggerTimer();
         }
 
