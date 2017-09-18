@@ -76,8 +76,8 @@ namespace IngameScript
                 }
                 catch (ArgumentException)
                 {
-                    logMessage(lcd.CustomName + " does not declare its label correct", Labels.WARNING, lcd);
-                    logMessage(lcd.CustomName + " will now be declared with label INFO", Labels.WARNING, lcd);
+                    logMessage(lcd.CustomName + " (this) does not declare its label correct", Labels.WARNING, lcd);
+                    logMessage(lcd.CustomName + " (this) will now be declared with label INFO", Labels.WARNING, lcd);
                     logMessage("Correct Labels are ERROR, WARNING, STATE, INFO, DEBUG; INFO is default", Labels.DEBUG);
                     logMessage("Custom Data should contain one of them (eg. ERROR)", Labels.DEBUG);
                 }
