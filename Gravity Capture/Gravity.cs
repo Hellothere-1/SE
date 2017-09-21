@@ -88,6 +88,27 @@ namespace IngameScript
                 dim.Z = value;
                 Generator.FieldSize = dim;
             }
+            public void OffsetX(float value)
+            {
+                Generator.Enabled = value >= 1;
+                Vector3 dim = dimensions;
+                dim.X += value;
+                Generator.FieldSize = dim;
+            }
+            public void OffsetY(float value)
+            {
+                Generator.Enabled = value >= 1;
+                Vector3 dim = dimensions;
+                dim.Y += value;
+                Generator.FieldSize = dim;
+            }
+            public void OffsetZ(float value)
+            {
+                Generator.Enabled = value >= 1;
+                Vector3 dim = dimensions;
+                dim.Z += value;
+                Generator.FieldSize = dim;
+            }
         }
     }
 }

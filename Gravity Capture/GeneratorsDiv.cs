@@ -57,24 +57,18 @@ namespace IngameScript
             }
             public void OffsetX(float value)
             {
-                Vector3 dim = Generators[0].dimensions;
-                dim.X += value;
-                foreach (IMyGravityGenerator generator in Generators)
-                    generator.FieldSize = dim;
+                foreach (Gravity generator in Generators)
+                    generator.OffsetX(value);
             }
             public void OffsetY(float value)
             {
-                Vector3 dim = Generators[0].dimensions;
-                dim.Y += value;
-                foreach (IMyGravityGenerator generator in Generators)
-                    generator.FieldSize = dim;
+                foreach (Gravity generator in Generators)
+                    generator.OffsetY(value);
             }
             public void OffsetZ(float value)
             {
-                Vector3 dim = Generators[0].dimensions;
-                dim.Z += value;
-                foreach (IMyGravityGenerator generator in Generators)
-                    generator.FieldSize = dim;
+                foreach (Gravity generator in Generators)
+                    generator.OffsetZ(value);
             }
         }
     }
