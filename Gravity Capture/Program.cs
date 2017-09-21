@@ -19,20 +19,17 @@ using VRageMath;
 namespace IngameScript
 {
     partial class Program : MyGridProgram
-    { 
+    {
+        bool GGEnabled = false;
+        
 
-        //Declaring MStates (MaschineStates)
-        enum MState { Working, WaitingTime, WaitingExternalEvent };
-
-
-        IMyTextPanel debugPanel;
-        IMyTimerBlock scriptTimer;
-        StateMaschine[] mainStateMaschine;
-        State currentState;
-        MState currentMState;
-        float waitTime;
-        string awaitedTrigger;
-        IMyGravityGenerator[,] UpDown = new IMyGravityGenerator[2, 2];
+        //Needed classes------------------------------
+        LCDClass lcdHandler;
+        StateMaschine stateHandler;
+        Hangar hangarHandler;
+        //-----------------------------------------------------
+        //Groups of GG-----------------------------------------
+        IMyGravityGenerator[,] UpDown=new IMyGravityGenerator[2,2];
         IMyGravityGenerator[,] Rota = new IMyGravityGenerator[2, 2];
         GeneratorsUni GGDis;
         GeneratorsUni GGR;
@@ -52,16 +49,14 @@ namespace IngameScript
 
         public Program()
         {
-
-            scriptTimer = GridTerminalSystem.GetBlockWithName("Script Timer") as IMyTimerBlock;
-
-            debugPanel = GridTerminalSystem.GetBlockWithName("Debug Panel") as IMyTextPanel;
-
-            mainStateMaschine = CreateStateMaschine(debugPanel);
-            debugPanel.WritePublicText("Main is ready \n", true);
-            currentState = State.Idle;
-            currentMState = MState.Working;
-
+            //Initialize logic for state maschine ------------------------------------
+            List<IMyTextPanel> outputPanels = new List<IMyTextPanel>();
+            GridTerminalSystem.GetBlocksOfType(outputPanels, x => x.CustomName.Contains("Output"));
+            lcdHandler = new LCDClass(outputPanels, this);
+            stateHandler = new StateMaschine(lcdHandler, this);
+            hangarHandler = new Hangar(lcdHandler, this);
+            //---------------------------------------------------------------------------
+            //Getting all GG at once to check if they are there--------------------------
             List<IMyGravityGenerator> Dis = new List<IMyGravityGenerator>();
             GridTerminalSystem.GetBlocksOfType(Dis, x => x.CustomName.Contains("Gravity Generator DIS"));
             GGDis = new GeneratorsUni(Dis, 20, 15, 10);
@@ -110,7 +105,7 @@ namespace IngameScript
             BottomSensor = GridTerminalSystem.GetBlockWithName("Bottom Sensor") as IMySensorBlock;
 
             Reference = GridTerminalSystem.GetBlockWithName("Hangar Reference") as IMyShipController;
-
+            
             GGFr.ResetDimensions();
             GGBa.ResetDimensions();
         }
@@ -128,49 +123,8 @@ namespace IngameScript
         public void Main(string argument)
         {
             Capture(phasetemp);
-
-            switch (currentMState)
-            {
-                case MState.Working:
-                    debugPanel.WritePublicText(("Current State is " + mainStateMaschine[(int)currentState].currentState + "\n"), true);
-                    switch (mainStateMaschine[(int)currentState].conditionForNextState)
-                    {
-                        case Conditions.None:
-                            debugPanel.WritePublicText(("Switching to state " + mainStateMaschine[(int)currentState].nextState + "\n"), true);
-                            currentState = mainStateMaschine[(int)currentState].nextState;
-                            break;
-                        case Conditions.Time:
-                            waitTime = mainStateMaschine[(int)currentState].ConditionTime;
-                            scriptTimer.TriggerDelay = waitTime;
-                            scriptTimer.StartCountdown();
-                            debugPanel.WritePublicText(("Waiting for switch in " + waitTime +" seconds\n"), true);
-                            currentMState = MState.WaitingTime;
-                            break;
-                        case Conditions.ExternalTrigger:
-                            awaitedTrigger = mainStateMaschine[(int)currentState].nextState.ToString();
-                            debugPanel.WritePublicText(("Waiting for switch with trigger " + awaitedTrigger + "\n"), true);
-                            currentMState = MState.WaitingExternalEvent;
-                            break;
-                    }
-                    
-                    break;
-                case MState.WaitingTime:
-                    if (argument == "timerTrigger")
-                    {
-                        currentState = mainStateMaschine[(int)currentState].nextState;
-                        currentMState = MState.Working;
-                    }
-                    break;
-                case MState.WaitingExternalEvent:
-                    if (argument == awaitedTrigger)
-                    {
-                        currentState = mainStateMaschine[(int)currentState].nextState;
-                        currentMState = MState.Working;
-                    }
-                    break;
-                default:
-                    break;
-            } 
+            hangarHandler.run(argument);
+            //stateHandler.run(argument);
         }
 
         public void Capture(int phase)
@@ -347,7 +301,7 @@ namespace IngameScript
                 UpDown[1, 1].GravityAcceleration = upDoBase + front + right;
             }
             */
-
+            
         }
     }
 }

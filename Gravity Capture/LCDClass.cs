@@ -103,6 +103,7 @@ namespace IngameScript
                     logMessage("Correct Labels are ERROR, WARNING, STATE, INFO, DEBUG; INFO is default", Labels.DEBUG);
                     logMessage("Custom Data should contain one of them (eg. ERROR)", Labels.DEBUG);
                 }
+                
             }
             //=========================================================================================
 
