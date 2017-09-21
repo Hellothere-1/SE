@@ -21,17 +21,13 @@ namespace IngameScript
     partial class Program : MyGridProgram
     {
         bool GGEnabled = false;
+        
 
-        //Logic of StateMaschine------------------------------
+        //Needed classes------------------------------
         LCDClass lcdHandler;
-        bool statusHangarDoors = false;
-        bool running;
-        IMyTimerBlock scriptTimer;
-        IMyTimerBlock CodeTriggerTimer;
-        StateMaschine[] mainStateMaschine;
-        State currentState;
+        StateMaschine stateHandler;
+        Hangar hangarHandler;
         //-----------------------------------------------------
-
         //Groups of GG-----------------------------------------
         public List<IMyGravityGeneratorBase> FrBa = new List<IMyGravityGeneratorBase>();
         List<IMyGravityGeneratorBase> LeRi = new List<IMyGravityGeneratorBase>();
@@ -55,29 +51,12 @@ namespace IngameScript
         public Program()
         {
             //Initialize logic for state maschine ------------------------------------
-            scriptTimer = GridTerminalSystem.GetBlockWithName("Script Timer") as IMyTimerBlock;
-            CodeTriggerTimer = GridTerminalSystem.GetBlockWithName("StateMaschine Timer") as IMyTimerBlock;
             List<IMyTextPanel> outputPanels = new List<IMyTextPanel>();
             GridTerminalSystem.GetBlocksOfType(outputPanels, x => x.CustomName.Contains("Output"));
             lcdHandler = new LCDClass(outputPanels, this);
-            mainStateMaschine = CreateStateMaschine();
-            currentState = State.Idle;
-            running = true;
-            //------------------------------------------------------------------------
-
-
-            //Check if logic part is missing------------------------------------------
-            if (scriptTimer == null || CodeTriggerTimer == null || mainStateMaschine == null)
-            {
-                lcdHandler.logMessage("State Maschine or/and Timers not found, are the names correct?", Labels.ERROR);
-            }
-            else
-            {
-                lcdHandler.logMessage("State Maschine and Timers found and activ", Labels.BOOTUP);
-            }
+            stateHandler = new StateMaschine(lcdHandler, this);
+            hangarHandler = new Hangar(lcdHandler, this);
             //---------------------------------------------------------------------------
-            
-
             //Getting all GG at once to check if they are there--------------------------
             List<IMyGravityGenerator> Dis = new List<IMyGravityGenerator>();
             GridTerminalSystem.GetBlocksOfType(Dis, x => x.CustomName.Contains("Gravity Generator DIS"));
@@ -130,8 +109,7 @@ namespace IngameScript
             }
             //--------------------------------------------------------------------------------
 
-            //Start the main code
-            startCodeTriggerTimer();
+            
         }
         
 
@@ -147,141 +125,9 @@ namespace IngameScript
 
         public void Main(string argument)
         {
-            stopCodeTriggerTimer();
-            
-            if (running)
-            {
-                //TODO execute the code
-                
-                //Switch State Block
-                if (mainStateMaschine[(int)currentState - 1].waitForTrigger)
-                {
-                    //Get into waiting mode
-                    running = false;
-                    //-------------------------------
-
-                    lcdHandler.logMessage("Changing into waiting mode");
-                }
-                else if (mainStateMaschine[(int)currentState - 1].nextState == State.None)
-                {
-                    //Start Timer for reset to Idle
-                    scriptTimer.TriggerDelay = 60;
-                    scriptTimer.StartCountdown();
-                    //-------------------------------
-
-                    //Get into waiting mode
-                    running = false;
-                    //-------------------------------
-
-                    lcdHandler.logMessage("Changing into waiting mode + activated Timeout(60s)");
-                }
-                else
-                {
-                    //Getting into the next state
-                    currentState = mainStateMaschine[(int)currentState - 1].nextState;
-                    mainStateMaschine[(int)State.OpenHangar - 1].nextState = State.None;
-                    //-------------------------------
-
-                    lcdHandler.logMessage("Switched to " + currentState.ToString(), Labels.STATE);
-                    startCodeTriggerTimer();
-                }
-                lcdHandler.logHeadOnScreen(currentState, running, statusHangarDoors);
-            }
-            else
-            {
-                bool inputValid = false;
-                //Returning if argument is null
-                if (argument == "")
-                {
-                    return;
-                }
-                //--------------------------------
-                lcdHandler.logMessage("Input is " + argument, Labels.DEBUG);
-                //Normal state change by checking if form currentState_nextState
-                string[] parts = argument.Split('_');
-                try
-                {
-                    if (parts[0] == mainStateMaschine[(int)currentState - 1].currentState.ToString())
-                    {
-                        try
-                        {
-                            currentState = (State)Enum.Parse(typeof(State), parts[1]);
-                            lcdHandler.logMessage("Switched to " + currentState.ToString(), Labels.STATE);
-                            running = true;
-                            startCodeTriggerTimer();
-                            inputValid = true;
-                        }
-                        catch (ArgumentException)
-                        {
-                            lcdHandler.logMessage("Error : " + parts[1] + " nicht als State vorhanden", Labels.WARNING);
-                            return;
-                        }
-                    }
-                    //-----------------------------------------
-
-                    //Special repeated state change if form *_OpenHangar_nextState
-                    if (parts[1] == "OpenHangar" && currentState == State.OpenHangar && parts.Length == 3)
-                    {
-                        try
-                        {
-                            mainStateMaschine[(int)currentState - 1].nextState = (State)Enum.Parse(typeof(State), parts[2]);
-                            scriptTimer.StopCountdown();
-                            running = true;
-                            startCodeTriggerTimer();
-                            inputValid = true;
-
-                        }
-                        catch (ArgumentException)
-                        {
-                            lcdHandler.logMessage("Error : " + parts[2] + " nicht als State vorhanden", Labels.WARNING);
-                            return;
-                        }
-                    }
-                    //---------------------------------------------
-                }
-                catch (Exception e)
-                {
-                    lcdHandler.logMessage(e.ToString(), Labels.ERROR);
-                }
-
-                //Printing error for wrong input
-                if (!inputValid)
-                {
-                    lcdHandler.logMessage("Input " + argument + " is not valid for this code", Labels.WARNING);
-                }
-                else
-                {
-                    lcdHandler.logHeadOnScreen(currentState, running, statusHangarDoors);
-                }
-                //----------------------------------------------
-            }
+            hangarHandler.run(argument);
+            //stateHandler.run(argument);
         }
-
-
-        //Called by script to get out of CaptureShip/LaunchShip
-        public void ForceNextState()
-        {
-            currentState = mainStateMaschine[(int)currentState - 1].nextState;
-        }
-        //-----------------------------------------------------
-
-
-        //Called by script to stop the timer to avoid double calls
-        public void stopCodeTriggerTimer()
-        {
-            CodeTriggerTimer.StopCountdown();
-        }
-        //----------------------------------------------------
-
-
-        //Called by script to reset timerdelay and start it
-        public void startCodeTriggerTimer()
-        {
-            CodeTriggerTimer.Trigger();
-            CodeTriggerTimer.TriggerDelay = 1;
-            CodeTriggerTimer.StartCountdown();
-        }
-        
             
         public void Capture()
         {
@@ -290,13 +136,5 @@ namespace IngameScript
             Echo(Convert.ToString(positon.Y));
             Echo(Convert.ToString(positon.Z));
         }
-
-
-        
-
-
-        
-
-        
     }
 }
