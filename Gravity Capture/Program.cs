@@ -20,13 +20,16 @@ namespace IngameScript
 {
     partial class Program : MyGridProgram
     {
-        bool GGEnabled = false;
+        bool GGOperational = false;
+        bool StateMaschienOperational = false;
+        bool OxygenControlOperational = false;
         
 
         //Needed classes------------------------------
         LCDClass lcdHandler;
         StateMaschine stateHandler;
-        Hangar hangarHandler;
+        OxygenControl oxygenHandler;
+        //GravityControl gravityHandler;
         //-----------------------------------------------------
         //Groups of GG-----------------------------------------
         IMyGravityGenerator[,] UpDown = new IMyGravityGenerator[2, 2];
@@ -54,60 +57,74 @@ namespace IngameScript
             GridTerminalSystem.GetBlocksOfType(outputPanels, x => x.CustomName.Contains("Output"));
             lcdHandler = new LCDClass(outputPanels, this);
             stateHandler = new StateMaschine(lcdHandler, this);
-            hangarHandler = new Hangar(lcdHandler, this);
+            oxygenHandler = new OxygenControl(lcdHandler, this);
+            //gravityHandler = new GravityControl(lcdHandler, this);
             //---------------------------------------------------------------------------
+
+            StateMaschienOperational = stateHandler.isOperational();
+            OxygenControlOperational = oxygenHandler.isOperational();
+
             //Getting all GG at once to check if they are there--------------------------
-            List<IMyGravityGenerator> Dis = new List<IMyGravityGenerator>();
-            GridTerminalSystem.GetBlocksOfType(Dis, x => x.CustomName.Contains("Gravity Generator DIS"));
-            GGDis = new GeneratorsUni(Dis, 20, 15, 10);
-            
-            List<IMyGravityGenerator> Re = new List<IMyGravityGenerator>();
-            GridTerminalSystem.GetBlocksOfType(Re, x => x.CustomName.Contains("Gravity Generator re"));
-            GGR = new GeneratorsUni(Re, 30, 13.6f, 10);
+            try
+            {
+                List<IMyGravityGenerator> Dis = new List<IMyGravityGenerator>();
+                GridTerminalSystem.GetBlocksOfType(Dis, x => x.CustomName.Contains("Gravity Generator DIS"));
+                GGDis = new GeneratorsUni(Dis, 20, 15, 10);
 
-            List<IMyGravityGenerator> Le = new List<IMyGravityGenerator>();
-            GridTerminalSystem.GetBlocksOfType(Le, x => x.CustomName.Contains("Gravity Generator le"));
-            GGL = new GeneratorsUni(Le, 30, 13.6f, 10);
+                List<IMyGravityGenerator> Re = new List<IMyGravityGenerator>();
+                GridTerminalSystem.GetBlocksOfType(Re, x => x.CustomName.Contains("Gravity Generator re"));
+                GGR = new GeneratorsUni(Re, 30, 13.6f, 10);
 
-            UpDown[0, 0] = GridTerminalSystem.GetBlockWithName("Gravity Generator up/do FR") as IMyGravityGenerator;
-            UpDown[0, 1] = GridTerminalSystem.GetBlockWithName("Gravity Generator up/do FL") as IMyGravityGenerator;
-            UpDown[1, 0] = GridTerminalSystem.GetBlockWithName("Gravity Generator up/do BR") as IMyGravityGenerator;
-            UpDown[1, 1] = GridTerminalSystem.GetBlockWithName("Gravity Generator up/do BL") as IMyGravityGenerator;
-            List<IMyGravityGenerator> UpDo = new List<IMyGravityGenerator>();
-            foreach (IMyGravityGenerator gg in UpDown)
-                UpDo.Add(gg);
-            GGUpDo = new GeneratorsUni(UpDo, 10, 33, 7.5f);
+                List<IMyGravityGenerator> Le = new List<IMyGravityGenerator>();
+                GridTerminalSystem.GetBlocksOfType(Le, x => x.CustomName.Contains("Gravity Generator le"));
+                GGL = new GeneratorsUni(Le, 30, 13.6f, 10);
 
-            Rota[0, 0] = GridTerminalSystem.GetBlockWithName("Gravity Generator Rot Fr -") as IMyGravityGenerator;
-            Rota[0, 1] = GridTerminalSystem.GetBlockWithName("Gravity Generator Rot Ba -") as IMyGravityGenerator;
-            Rota[1, 0] = GridTerminalSystem.GetBlockWithName("Gravity Generator Rot Le +") as IMyGravityGenerator;
-            Rota[1, 1] = GridTerminalSystem.GetBlockWithName("Gravity Generator Rot Re +") as IMyGravityGenerator;
-            List<IMyGravityGenerator> Rot = new List<IMyGravityGenerator>();
-            foreach (IMyGravityGenerator gg in Rota)
-                Rot.Add(gg);
-            GGRot = new GeneratorsUni(Rot, 0, 30, 14);
+                UpDown[0, 0] = GridTerminalSystem.GetBlockWithName("Gravity Generator up/do FR") as IMyGravityGenerator;
+                UpDown[0, 1] = GridTerminalSystem.GetBlockWithName("Gravity Generator up/do FL") as IMyGravityGenerator;
+                UpDown[1, 0] = GridTerminalSystem.GetBlockWithName("Gravity Generator up/do BR") as IMyGravityGenerator;
+                UpDown[1, 1] = GridTerminalSystem.GetBlockWithName("Gravity Generator up/do BL") as IMyGravityGenerator;
+                List<IMyGravityGenerator> UpDo = new List<IMyGravityGenerator>();
+                foreach (IMyGravityGenerator gg in UpDown)
+                    UpDo.Add(gg);
+                GGUpDo = new GeneratorsUni(UpDo, 10, 33, 7.5f);
 
-            List<Gravity> Fr = new List<Gravity>();
-            List<Gravity> Ba = new List<Gravity>();
-            Fr.Add(new Gravity(GridTerminalSystem.GetBlockWithName("Gravity Generator fr 1 +") as IMyGravityGenerator, 6, 16, 35));
-            Ba.Add(new Gravity(GridTerminalSystem.GetBlockWithName("Gravity Generator ba 1 +") as IMyGravityGenerator, 6, 16, 35));
-            Fr.Add(new Gravity(GridTerminalSystem.GetBlockWithName("Gravity Generator fr 2 -") as IMyGravityGenerator, 3, 17, 30));
-            Ba.Add(new Gravity(GridTerminalSystem.GetBlockWithName("Gravity Generator ba 2 -") as IMyGravityGenerator, 3, 17, 30));
-            Fr.Add(new Gravity(GridTerminalSystem.GetBlockWithName("Gravity Generator fr 3 +") as IMyGravityGenerator, 8, 11.8f, 30));
-            Ba.Add(new Gravity(GridTerminalSystem.GetBlockWithName("Gravity Generator ba 3 +") as IMyGravityGenerator, 8, 11.8f, 30));
+                Rota[0, 0] = GridTerminalSystem.GetBlockWithName("Gravity Generator Rot Fr -") as IMyGravityGenerator;
+                Rota[0, 1] = GridTerminalSystem.GetBlockWithName("Gravity Generator Rot Ba -") as IMyGravityGenerator;
+                Rota[1, 0] = GridTerminalSystem.GetBlockWithName("Gravity Generator Rot Le +") as IMyGravityGenerator;
+                Rota[1, 1] = GridTerminalSystem.GetBlockWithName("Gravity Generator Rot Re +") as IMyGravityGenerator;
+                List<IMyGravityGenerator> Rot = new List<IMyGravityGenerator>();
+                foreach (IMyGravityGenerator gg in Rota)
+                    Rot.Add(gg);
+                GGRot = new GeneratorsUni(Rot, 0, 30, 14);
 
-            GGFr = new GeneratorsDiv(Fr);
-            GGBa = new GeneratorsDiv(Ba);
+                List<Gravity> Fr = new List<Gravity>();
+                List<Gravity> Ba = new List<Gravity>();
+                Fr.Add(new Gravity(GridTerminalSystem.GetBlockWithName("Gravity Generator fr 1 +") as IMyGravityGenerator, 6, 16, 35));
+                Ba.Add(new Gravity(GridTerminalSystem.GetBlockWithName("Gravity Generator ba 1 +") as IMyGravityGenerator, 6, 16, 35));
+                Fr.Add(new Gravity(GridTerminalSystem.GetBlockWithName("Gravity Generator fr 2 -") as IMyGravityGenerator, 3, 17, 30));
+                Ba.Add(new Gravity(GridTerminalSystem.GetBlockWithName("Gravity Generator ba 2 -") as IMyGravityGenerator, 3, 17, 30));
+                Fr.Add(new Gravity(GridTerminalSystem.GetBlockWithName("Gravity Generator fr 3 +") as IMyGravityGenerator, 8, 11.8f, 30));
+                Ba.Add(new Gravity(GridTerminalSystem.GetBlockWithName("Gravity Generator ba 3 +") as IMyGravityGenerator, 8, 11.8f, 30));
 
-           
+                GGFr = new GeneratorsDiv(Fr);
+                GGBa = new GeneratorsDiv(Ba);
 
-            HangarSensor = GridTerminalSystem.GetBlockWithName("Sensor Hangar") as IMySensorBlock;
-            BottomSensor = GridTerminalSystem.GetBlockWithName("Bottom Sensor") as IMySensorBlock;
 
-            Reference = GridTerminalSystem.GetBlockWithName("Hangar Reference") as IMyShipController;
-            
-            GGFr.ResetDimensions();
-            GGBa.ResetDimensions();
+
+                HangarSensor = GridTerminalSystem.GetBlockWithName("Sensor Hangar") as IMySensorBlock;
+                BottomSensor = GridTerminalSystem.GetBlockWithName("Bottom Sensor") as IMySensorBlock;
+
+                Reference = GridTerminalSystem.GetBlockWithName("Hangar Reference") as IMyShipController;
+
+                GGFr.ResetDimensions();
+                GGBa.ResetDimensions();
+                GGOperational = true;
+            }
+            catch (Exception)
+            {
+                GGOperational = false;
+                lcdHandler.logMessage("GGs could not be initiated, something is missing", Tags.GRA, Labels.cERR);
+            }
         }
 
         public void Save()
@@ -122,9 +139,18 @@ namespace IngameScript
 
         public void Main(string argument)
         {
-            Capture(phasetemp);
-            //hangarHandler.run(argument);
-            //stateHandler.run(argument);
+            if (GGOperational)
+            {
+                Capture(phasetemp);
+            }
+            if (OxygenControlOperational)
+            {
+                oxygenHandler.run(argument);
+            }
+            if (StateMaschienOperational)
+            {
+                stateHandler.run(argument);
+            }
         }
 
         public void Capture(int phase)

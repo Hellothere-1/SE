@@ -35,7 +35,7 @@ namespace IngameScript
             StateMaschinePage[] stateMaschine;
             bool running;
             bool statusHangarDoors = false;
-            State currentState;
+            State currentState = State.Error;
             LCDClass lcdHandler;
 
             public StateMaschine(LCDClass log, Program par)
@@ -69,17 +69,29 @@ namespace IngameScript
                 //Check if logic part is missing------------------------------------------
                 if (scriptTimer == null || CodeTriggerTimer == null || stateMaschine == null)
                 {
-                    lcdHandler.logMessage("State Maschine or/and Timers not found, are the names correct?", Labels.ERROR);
+                    lcdHandler.logMessage("State Maschine or/and Timers not found, are the names correct?", Tags.STM, Labels.cERR);
                     currentState = State.Error;
                     return null;
                 }
                 else
                 {
-                    lcdHandler.logMessage("State Maschine and Timers found and activ", Labels.BOOTUP);
+                    lcdHandler.logMessage("State Maschine and Timers found and activ", Tags.STM, Labels.BOOT);
                     currentState = State.Idle;
                     return stateMaschine;
                 }
                 //---------------------------------------------------------------------------
+            }
+
+            public bool isOperational()
+            {
+                if (currentState == State.Error)
+                {
+                    return false;
+                }
+                else
+                {
+                    return true;
+                }
             }
 
             void FillStateTableEntry(StateMaschinePage entry, State current, State next, bool wait)
@@ -99,12 +111,12 @@ namespace IngameScript
 
             public void run(string argument)
             {
-                stopCodeTriggerTimer();
+                
                 if (currentState == State.Error)
                 {
                     return;
                 }
-
+                stopCodeTriggerTimer();
                 if (running)
                 {
                     //TODO execute the code
@@ -116,7 +128,7 @@ namespace IngameScript
                         running = false;
                         //-------------------------------
 
-                        lcdHandler.logMessage("Changing into waiting mode");
+                        lcdHandler.logMessage("Changing into waiting mode", Tags.STM);
                     }
                     else if (stateMaschine[(int)currentState - 1].nextState == State.None)
                     {
@@ -129,7 +141,7 @@ namespace IngameScript
                         running = false;
                         //-------------------------------
 
-                        lcdHandler.logMessage("Changing into waiting mode + activated Timeout(60s)");
+                        lcdHandler.logMessage("Changing into waiting mode + activated Timeout(60s)", Tags.STM);
                     }
                     else
                     {
@@ -138,7 +150,7 @@ namespace IngameScript
                         stateMaschine[(int)State.OpenHangar - 1].nextState = State.None;
                         //-------------------------------
 
-                        lcdHandler.logMessage("Switched to " + currentState.ToString(), Labels.STATE);
+                        lcdHandler.logMessage("Switched to " + currentState.ToString(), Tags.STM, Labels.STAT);
                         startCodeTriggerTimer();
                     }
                     lcdHandler.logHeadOnScreen(currentState, running, statusHangarDoors);
@@ -152,7 +164,7 @@ namespace IngameScript
                         return;
                     }
                     //--------------------------------
-                    lcdHandler.logMessage("Input is " + argument, Labels.DEBUG);
+                    lcdHandler.logMessage("Input is " + argument, Tags.STM, Labels.DBUG);
                     //Normal state change by checking if form currentState_nextState
                     string[] parts = argument.Split('_');
                     try
@@ -162,14 +174,14 @@ namespace IngameScript
                             try
                             {
                                 currentState = (State)Enum.Parse(typeof(State), parts[1]);
-                                lcdHandler.logMessage("Switched to " + currentState.ToString(), Labels.STATE);
+                                lcdHandler.logMessage("Switched to " + currentState.ToString(), Tags.STM, Labels.STAT);
                                 running = true;
                                 startCodeTriggerTimer();
                                 inputValid = true;
                             }
                             catch (ArgumentException)
                             {
-                                lcdHandler.logMessage("Error : " + parts[1] + " nicht als State vorhanden", Labels.WARNING);
+                                lcdHandler.logMessage("Error : " + parts[1] + " nicht als State vorhanden", Tags.STM, Labels.WARN);
                                 return;
                             }
                         }
@@ -189,7 +201,7 @@ namespace IngameScript
                             }
                             catch (ArgumentException)
                             {
-                                lcdHandler.logMessage("Error : " + parts[2] + " nicht als State vorhanden", Labels.WARNING);
+                                lcdHandler.logMessage("Error : " + parts[2] + " nicht als State vorhanden", Tags.STM, Labels.WARN);
                                 return;
                             }
                         }
@@ -197,13 +209,13 @@ namespace IngameScript
                     }
                     catch (Exception e)
                     {
-                        lcdHandler.logMessage(e.ToString(), Labels.ERROR);
+                        lcdHandler.logMessage(e.ToString(), Tags.STM, Labels.cERR);
                     }
 
                     //Printing error for wrong input
                     if (!inputValid)
                     {
-                        lcdHandler.logMessage("Input " + argument + " is not valid for this code", Labels.WARNING);
+                        lcdHandler.logMessage("Input " + argument + " is not valid for this code", Tags.STM, Labels.WARN);
                     }
                     else
                     {
