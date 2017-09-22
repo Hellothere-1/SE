@@ -29,12 +29,14 @@ namespace IngameScript
             Dictionary<IMyTextPanel, int> WidthLCD;
             bool logEnabled;
 
-            public LCDClass(List<IMyTextPanel> lcds, Program par)
+            public LCDClass(Program par)
             {
                 parent = par;
-                LCDDict = lcds.ToDictionary(x => x, y => new int[] {4, 15});
-                WidthLCD = lcds.ToDictionary(x => x, y => 70);
-                logEnabled = lcds.Count() != 0 ? true : false;
+                List<IMyTextPanel> outputPanels = new List<IMyTextPanel>();
+                parent.GridTerminalSystem.GetBlocksOfType(outputPanels, x => x.CustomName.Contains("Output"));
+                LCDDict = outputPanels.ToDictionary(x => x, y => new int[] {4, 15});
+                WidthLCD = outputPanels.ToDictionary(x => x, y => 70);
+                logEnabled = outputPanels.Count() != 0 ? true : false;
                 if (logEnabled)
                 {
                     setUpDisplays();
