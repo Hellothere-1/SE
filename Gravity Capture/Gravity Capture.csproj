@@ -115,7 +115,7 @@
     <Compile Include="LCDClass.cs" />
     <Compile Include="GeneratorsDiv.cs" />
     <Compile Include="GeneratorsUni.cs" />
-    <Compile Include="Gravity Control.cs" />
+    <Compile Include="GravityControl.cs" />
     <Compile Include="Gravity.cs" />
     <Compile Include="StateMaschine.cs" />
     <Compile Include="MDK\Bootstrapper.cs" />
