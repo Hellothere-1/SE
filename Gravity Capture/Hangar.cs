@@ -21,8 +21,8 @@ namespace IngameScript
         public class Hangar
         {
             LCDClass lcdHandler;
-            List<IMyGasTank> oxygenHangarTanks = new List<IMyGasTank>();
-            List<IMyGasTank> oxygenShipTanks = new List<IMyGasTank>();
+            List<IMyGasTank> HangarOxyTanks = new List<IMyGasTank>();
+            List<IMyGasTank> ShipGasTanks = new List<IMyGasTank>();
             List<IMyGasGenerator> oxygenGenerators = new List<IMyGasGenerator>();
             List<IMyAirVent> ventsHangar = new List<IMyAirVent>();
             List<IMyAirtightHangarDoor> hangarDoors = new List<IMyAirtightHangarDoor>();
@@ -31,112 +31,157 @@ namespace IngameScript
             Program parent;
             float currentAirLevel;
             bool OxyOverflow = false;
+            bool AwaitHangarDoors = false;
+            bool AlreadyReguided = false;
 
             public Hangar(LCDClass lcd ,Program par)
             {
                 lcdHandler = lcd;
                 parent = par;
                 parent.GridTerminalSystem.GetBlocksOfType(ventsHangar, x => x.CustomName.Contains("Hangar"));
-                parent.GridTerminalSystem.GetBlocksOfType(oxygenHangarTanks, x => x.CustomName.Contains("Hangar"));
-                parent.GridTerminalSystem.GetBlocksOfType(oxygenShipTanks, x => !x.CustomName.Contains("Hangar"));
+                parent.GridTerminalSystem.GetBlocksOfType(HangarOxyTanks, x => x.CustomName.Contains("Hangar"));
+                parent.GridTerminalSystem.GetBlocksOfType(ShipGasTanks, x => !x.CustomName.Contains("Hangar"));
                 parent.GridTerminalSystem.GetBlocksOfType(oxygenGenerators);
                 IMyBlockGroup doors = parent.GridTerminalSystem.GetBlockGroupWithName("Hangar Doors");
                 doors.GetBlocksOfType(hangarDoors);
-                if (ventsHangar[0].GetOxygenLevel() == 1)
-                {
-                    hangarState = AIR_STATE.Full;
-                }
-                else
-                {
-                    hangarState = AIR_STATE.Empty;
-                }
+                hangarState = ventsHangar[0].GetOxygenLevel() == 1 ? AIR_STATE.Full : AIR_STATE.Empty;
+                EnableGasGenerator(false);
+                EnableGasTank(true, ShipGasTanks);
+                EnableGasTank(false, HangarOxyTanks);
             }
 
 
             public void run(string argument)
             {
+                if (argument == "Air_check")
+                {
+                    if (checkGasTanks())
+                    {
+                        lcdHandler.logMessage("Oxygen or Hydrogen levels low, start refilling");
+                    }
+                    else
+                    {
+                        lcdHandler.logMessage("Oxygen and Hydrogen level stable");
+                    }
+                    
+                }
+
                 if (argument == "Air_depressurize" && (hangarState == AIR_STATE.Full || hangarState == AIR_STATE.Pressurizing))
                 {
                     SetVentDepressurize(true);
-                    currentAirLevel = ventsHangar[0].GetOxygenLevel();
+                    currentAirLevel = ventsHangar[0].GetOxygenLevel() * 100;
                     hangarState = AIR_STATE.Depressurizing;
                     lcdHandler.logMessage("Hangar is now depressurizing");
+                    return;
                 }
 
 
                 if (argument == "Air_pressurize" && (hangarState == AIR_STATE.Empty || hangarState == AIR_STATE.Depressurizing))
                 {
-                    
-                    currentAirLevel = ventsHangar[0].GetOxygenLevel();
+                    currentAirLevel = ventsHangar[0].GetOxygenLevel() * 100;
                     hangarState = AIR_STATE.Pressurizing;
                     lcdHandler.logMessage("Hangar is now pressurizing");
                     SetHangarDoors(false);
-                    EnableGasGenerator(false);
-                    EnableGasTank(true, oxygenHangarTanks);
-                    EnableGasTank(false, oxygenShipTanks);
+                    EnableGasTank(true, HangarOxyTanks);
+                    EnableGasTank(false, ShipGasTanks);
                     SetVentDepressurize(false);
+                    return;
+                }
+
+                if (currentAirLevel == 100 && hangarState == AIR_STATE.Pressurizing)
+                {
+                    hangarState = AIR_STATE.Full;
+                    lcdHandler.logMessage("Current O² Level: 100%");
+                    lcdHandler.logMessage("Hangar fully pressurized");
+                    EnableGasTank(false, HangarOxyTanks);
+                    EnableGasTank(true, ShipGasTanks);
+                    return;
+
+                }
+
+                if (currentAirLevel == 0 && hangarState == AIR_STATE.Depressurizing)
+                {
+                    lcdHandler.logMessage("Current O² Level: 0%");
+                    hangarState = AIR_STATE.Empty;
+                    lcdHandler.logMessage("Hangar fully depressurized");
+                    AlreadyReguided = false;
+                    return;
                 }
 
 
                 if (hangarState == AIR_STATE.Depressurizing || hangarState == AIR_STATE.Pressurizing)
                 {
-
                     if (currentAirLevel == (ventsHangar[0].GetOxygenLevel() * 100))
                     {
                         if (hangarState == AIR_STATE.Depressurizing)
                         {
-                            lcdHandler.logMessage("Tanks full, reguiding O²", Labels.WARNING);
-                            EnableGasGenerator(false);
-                            EnableGasTank(true, oxygenHangarTanks);
-
                             if (OxyOverflow)
                             {
                                 lcdHandler.logMessage("Cannot transfer O², emergency opening of hangar doors", Labels.ERROR);
                                 SetHangarDoors(true);
+                                EnableGasTank(false, HangarOxyTanks);
+                            }
+                            else if(!AlreadyReguided)
+                            {
+                                lcdHandler.logMessage("Tanks full, reguiding O²", Labels.WARNING);
+                                EnableGasTank(true, HangarOxyTanks);
+                                AlreadyReguided = true;
                             }
                             OxyOverflow = true;
                         }
                         else
                         {
-                            if (hangarDoors[0].Status == DoorStatus.Closed)
+                            if (currentAirLevel != 100)
                             {
-                                lcdHandler.logMessage("Dedicated tanks empty, activating Generators and main tanks");
-                                EnableGasTank(false, oxygenHangarTanks);
-                                EnableGasTank(true, oxygenShipTanks);
-                                EnableGasGenerator(true);
+                                if (hangarDoors[0].Status == DoorStatus.Closed && !AwaitHangarDoors)
+                                {
+                                    lcdHandler.logMessage("Dedicated tanks empty, activating main tanks");
+                                    EnableGasTank(false, HangarOxyTanks);
+                                    EnableGasTank(true, ShipGasTanks);
+                                    AwaitHangarDoors = false;
+                                }
+                                else if (hangarDoors[0].Status == DoorStatus.Closed)
+                                {
+                                    lcdHandler.logMessage("Hangar Doors closed");
+                                    AwaitHangarDoors = false;
+                                }
+                                else
+                                {
+                                    if (!AwaitHangarDoors)
+                                    {
+                                        lcdHandler.logMessage("Waiting for hangar doors to close");
+                                    }
+                                    AwaitHangarDoors = true;
+                                    SetHangarDoors(false);
+                                }
                             }
-                            
                         }
-                        
                     }
                     else
                     {
                         OxyOverflow = false;
+                        lcdHandler.logMessage("Current O² Level: " + (currentAirLevel).ToString() + "%");
                     }
-
-
                     currentAirLevel = ventsHangar[0].GetOxygenLevel() * 100;
-                    lcdHandler.logMessage("Current O² Level: " + (currentAirLevel).ToString() + "%");
-
-
-                    if (currentAirLevel == 100 && hangarState == AIR_STATE.Pressurizing)
-                    {
-                        hangarState = AIR_STATE.Full;
-                        lcdHandler.logMessage("Hangar fully pressurized");
-                        EnableGasTank(false, oxygenHangarTanks);
-                        EnableGasTank(true, oxygenShipTanks);
-                        EnableGasGenerator(true);
-                    }
-
-
-                    if (currentAirLevel == 0 && hangarState == AIR_STATE.Depressurizing)
-                    {
-                        hangarState = AIR_STATE.Empty;
-                        lcdHandler.logMessage("Hangar fully depressurized");
-                    }
                 }
             }
 
+
+            bool checkGasTanks()
+            {
+                foreach(IMyGasTank oxyTan in ShipGasTanks)
+                {
+                    if (oxyTan.DetailedInfo.Split('\n')[0] == "Type: Oxygen Tank" && oxyTan.FilledRatio <= 0.5)
+                    {
+                        return true;
+                    }
+                    else if (oxyTan.FilledRatio <= 0.75)
+                    {
+                        return true;
+                    }
+                }
+                return false;
+            }
 
             void SetVentDepressurize(bool enable)
             {
@@ -150,7 +195,11 @@ namespace IngameScript
             {
                 foreach (IMyGasTank oxyTan in tanks)
                 {
-                    oxyTan.Enabled = enable;
+                    if (oxyTan.DetailedInfo.Split('\n')[0] == "Type: Oxygen Tank")
+                    {
+                        oxyTan.Enabled = enable;
+                    }
+                    
                 }
             }
 
