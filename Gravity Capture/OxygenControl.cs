@@ -51,11 +51,11 @@ namespace IngameScript
                     EnableGasGenerator(false);
                     EnableGasTank(true, ShipGasTanks);
                     EnableGasTank(false, HangarOxyTanks);
-                    lcdHandler.logMessage("Oxygen Control operational");
+                    lcdHandler.logMessage("Oxygen Control operational", Tags.OXY, Labels.BOOT);
                 }
                 catch (NullReferenceException)
                 {
-                    lcd.logMessage("Oxygen Control not operational, something is missing", Labels.ERROR);
+                    lcd.logMessage("Oxygen Control not operational, something is missing", Tags.OXY, Labels.cERR);
                     hangarState = AIR_STATE.Error;
                 }
                 
