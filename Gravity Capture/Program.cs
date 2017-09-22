@@ -54,7 +54,7 @@ namespace IngameScript
             GridTerminalSystem.GetBlocksOfType(outputPanels, x => x.CustomName.Contains("Output"));
             lcdHandler = new LCDClass(outputPanels, this);
             stateHandler = new StateMaschine(lcdHandler, this);
-            hangarHandler = new Hangar(lcdHandler, this);
+            //hangarHandler = new Hangar(lcdHandler, this);
             //---------------------------------------------------------------------------
             //Getting all GG at once to check if they are there--------------------------
             try
@@ -114,7 +114,7 @@ namespace IngameScript
             }
             catch (Exception)
             {
-                lcdHandler.logMessage("GGs could not be initiated, something is missing", Labels.ERROR);
+                lcdHandler.logMessage("GGs could not be initiated, something is missing", Tags.GRA, Labels.cERR);
                 GGEnabled = false;
             }
         }
@@ -135,11 +135,11 @@ namespace IngameScript
             {
                 Capture(phasetemp);
             }
-            hangarHandler.run(argument);
+            //hangarHandler.run(argument);
             
 
             
-            //stateHandler.run(argument);
+            stateHandler.run(argument);
         }
 
         public void Capture(int phase)
