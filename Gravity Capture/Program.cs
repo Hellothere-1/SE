@@ -29,7 +29,7 @@ namespace IngameScript
         Hangar hangarHandler;
         //-----------------------------------------------------
         //Groups of GG-----------------------------------------
-        IMyGravityGenerator[,] UpDown=new IMyGravityGenerator[2,2];
+        IMyGravityGenerator[,] UpDown = new IMyGravityGenerator[2, 2];
         IMyGravityGenerator[,] Rota = new IMyGravityGenerator[2, 2];
         GeneratorsUni GGDis;
         GeneratorsUni GGR;
@@ -123,7 +123,7 @@ namespace IngameScript
         public void Main(string argument)
         {
             Capture(phasetemp);
-            hangarHandler.run(argument);
+            //hangarHandler.run(argument);
             //stateHandler.run(argument);
         }
 
@@ -237,7 +237,7 @@ namespace IngameScript
                     float upDoBase = Convert.ToSingle(-5 * (position.Y + height) - 7 * velocities.Y);
 
 
-                    if (position.Y > -3)
+                    if (position.Y > -6)
                     {
                         float offset;
                         if (freedirection)
