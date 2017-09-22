@@ -9,6 +9,7 @@
 
 #MDK file
 *.options
+!*.options/
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
