@@ -35,7 +35,7 @@ namespace IngameScript
             StateMaschinePage[] stateMaschine;
             bool running;
             bool statusHangarDoors = false;
-            State currentState;
+            State currentState = State.Error;
             LCDClass lcdHandler;
 
             public StateMaschine(LCDClass log, Program par)
@@ -80,6 +80,18 @@ namespace IngameScript
                     return stateMaschine;
                 }
                 //---------------------------------------------------------------------------
+            }
+
+            public bool isOperational()
+            {
+                if (currentState == State.Error)
+                {
+                    return false;
+                }
+                else
+                {
+                    return true;
+                }
             }
 
             void FillStateTableEntry(StateMaschinePage entry, State current, State next, bool wait)

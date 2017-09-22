@@ -18,7 +18,7 @@ namespace IngameScript
 {
     partial class Program
     {
-        public class Hangar
+        public class OxygenControl
         {
             LCDClass lcdHandler;
             List<IMyGasTank> HangarOxyTanks = new List<IMyGasTank>();
@@ -26,7 +26,7 @@ namespace IngameScript
             List<IMyGasGenerator> oxygenGenerators = new List<IMyGasGenerator>();
             List<IMyAirVent> ventsHangar = new List<IMyAirVent>();
             List<IMyAirtightHangarDoor> hangarDoors = new List<IMyAirtightHangarDoor>();
-            enum AIR_STATE { Empty, Depressurizing, Pressurizing, Full }
+            enum AIR_STATE {Error = -1, Empty, Depressurizing, Pressurizing, Full }
             AIR_STATE hangarState;
             Program parent;
             float currentAirLevel;
@@ -34,25 +34,53 @@ namespace IngameScript
             bool AwaitHangarDoors = false;
             bool AlreadyReguided = false;
 
-            public Hangar(LCDClass lcd ,Program par)
+            public OxygenControl(LCDClass lcd ,Program par)
             {
                 lcdHandler = lcd;
                 parent = par;
+
                 parent.GridTerminalSystem.GetBlocksOfType(ventsHangar, x => x.CustomName.Contains("Hangar"));
                 parent.GridTerminalSystem.GetBlocksOfType(HangarOxyTanks, x => x.CustomName.Contains("Hangar"));
                 parent.GridTerminalSystem.GetBlocksOfType(ShipGasTanks, x => !x.CustomName.Contains("Hangar"));
-                parent.GridTerminalSystem.GetBlocksOfType(oxygenGenerators);
                 IMyBlockGroup doors = parent.GridTerminalSystem.GetBlockGroupWithName("Hangar Doors");
-                doors.GetBlocksOfType(hangarDoors);
-                hangarState = ventsHangar[0].GetOxygenLevel() == 1 ? AIR_STATE.Full : AIR_STATE.Empty;
-                EnableGasGenerator(false);
-                EnableGasTank(true, ShipGasTanks);
-                EnableGasTank(false, HangarOxyTanks);
+                parent.GridTerminalSystem.GetBlocksOfType(oxygenGenerators);
+                try
+                {
+                    doors.GetBlocksOfType(hangarDoors);
+                    hangarState = ventsHangar[0].GetOxygenLevel() == 1 ? AIR_STATE.Full : AIR_STATE.Empty;
+                    EnableGasGenerator(false);
+                    EnableGasTank(true, ShipGasTanks);
+                    EnableGasTank(false, HangarOxyTanks);
+                    lcdHandler.logMessage("Oxygen Control operational");
+                }
+                catch (NullReferenceException)
+                {
+                    lcd.logMessage("Oxygen Control not operational, something is missing", Labels.ERROR);
+                    hangarState = AIR_STATE.Error;
+                }
+                
+            }
+
+            public bool isOperational()
+            {
+                if (hangarState == AIR_STATE.Error)
+                {
+                    return false;
+                }
+                else
+                {
+                    return true;
+                }
             }
 
 
             public void run(string argument)
             {
+                if (hangarState == AIR_STATE.Error)
+                {
+                    return;
+                }
+
                 if (argument == "Air_check")
                 {
                     if (checkGasTanks())

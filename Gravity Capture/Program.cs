@@ -20,13 +20,16 @@ namespace IngameScript
 {
     partial class Program : MyGridProgram
     {
-        bool GGEnabled = false;
+        bool GGOperational = false;
+        bool StateMaschienOperational = false;
+        bool OxygenControlOperational = false;
         
 
         //Needed classes------------------------------
         LCDClass lcdHandler;
         StateMaschine stateHandler;
-        Hangar hangarHandler;
+        OxygenControl oxygenHandler;
+        //GravityControl gravityHandler;
         //-----------------------------------------------------
         //Groups of GG-----------------------------------------
         IMyGravityGenerator[,] UpDown = new IMyGravityGenerator[2, 2];
@@ -54,8 +57,13 @@ namespace IngameScript
             GridTerminalSystem.GetBlocksOfType(outputPanels, x => x.CustomName.Contains("Output"));
             lcdHandler = new LCDClass(outputPanels, this);
             stateHandler = new StateMaschine(lcdHandler, this);
-            hangarHandler = new Hangar(lcdHandler, this);
+            oxygenHandler = new OxygenControl(lcdHandler, this);
+            //gravityHandler = new GravityControl(lcdHandler, this);
             //---------------------------------------------------------------------------
+
+            StateMaschienOperational = stateHandler.isOperational();
+            OxygenControlOperational = oxygenHandler.isOperational();
+
             //Getting all GG at once to check if they are there--------------------------
             try
             {
@@ -110,12 +118,12 @@ namespace IngameScript
 
                 GGFr.ResetDimensions();
                 GGBa.ResetDimensions();
-                GGEnabled = true;
+                GGOperational = true;
             }
             catch (Exception)
             {
                 lcdHandler.logMessage("GGs could not be initiated, something is missing", Labels.ERROR);
-                GGEnabled = false;
+                GGOperational = false;
             }
         }
 
@@ -131,15 +139,18 @@ namespace IngameScript
 
         public void Main(string argument)
         {
-            if (GGEnabled)
+            if (GGOperational)
             {
                 Capture(phasetemp);
             }
-            hangarHandler.run(argument);
-            
-
-            
-            //stateHandler.run(argument);
+            if (OxygenControlOperational)
+            {
+                oxygenHandler.run(argument);
+            }
+            if (StateMaschienOperational)
+            {
+                stateHandler.run(argument);
+            }
         }
 
         public void Capture(int phase)
