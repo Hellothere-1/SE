@@ -85,11 +85,11 @@ namespace IngameScript
                 {
                     if (checkGasTanks())
                     {
-                        lcdHandler.logMessage("Oxygen or Hydrogen levels low, start refilling");
+                        lcdHandler.logMessage("Oxygen or Hydrogen levels low, start refilling", Tags.OXY);
                     }
                     else
                     {
-                        lcdHandler.logMessage("Oxygen and Hydrogen level stable");
+                        lcdHandler.logMessage("Oxygen and Hydrogen level stable", Tags.OXY);
                     }
                     
                 }
@@ -99,7 +99,7 @@ namespace IngameScript
                     SetVentDepressurize(true);
                     currentAirLevel = ventsHangar[0].GetOxygenLevel() * 100;
                     hangarState = AIR_STATE.Depressurizing;
-                    lcdHandler.logMessage("Hangar is now depressurizing");
+                    lcdHandler.logMessage("Hangar is now depressurizing", Tags.OXY);
                     return;
                 }
 
@@ -108,7 +108,7 @@ namespace IngameScript
                 {
                     currentAirLevel = ventsHangar[0].GetOxygenLevel() * 100;
                     hangarState = AIR_STATE.Pressurizing;
-                    lcdHandler.logMessage("Hangar is now pressurizing");
+                    lcdHandler.logMessage("Hangar is now pressurizing", Tags.OXY);
                     SetHangarDoors(false);
                     EnableGasTank(true, HangarOxyTanks);
                     EnableGasTank(false, ShipGasTanks);
@@ -119,8 +119,8 @@ namespace IngameScript
                 if (currentAirLevel == 100 && hangarState == AIR_STATE.Pressurizing)
                 {
                     hangarState = AIR_STATE.Full;
-                    lcdHandler.logMessage("Current O² Level: 100%");
-                    lcdHandler.logMessage("Hangar fully pressurized");
+                    lcdHandler.logMessage("Current O² Level: 100%", Tags.OXY);
+                    lcdHandler.logMessage("Hangar fully pressurized", Tags.OXY);
                     EnableGasTank(false, HangarOxyTanks);
                     EnableGasTank(true, ShipGasTanks);
                     return;
@@ -129,9 +129,9 @@ namespace IngameScript
 
                 if (currentAirLevel == 0 && hangarState == AIR_STATE.Depressurizing)
                 {
-                    lcdHandler.logMessage("Current O² Level: 0%");
+                    lcdHandler.logMessage("Current O² Level: 0%", Tags.OXY);
                     hangarState = AIR_STATE.Empty;
-                    lcdHandler.logMessage("Hangar fully depressurized");
+                    lcdHandler.logMessage("Hangar fully depressurized", Tags.OXY);
                     AlreadyReguided = false;
                     return;
                 }
@@ -145,13 +145,13 @@ namespace IngameScript
                         {
                             if (OxyOverflow)
                             {
-                                lcdHandler.logMessage("Cannot transfer O², emergency opening of hangar doors", Labels.ERROR);
+                                lcdHandler.logMessage("Cannot transfer O², emergency opening of hangar doors", Tags.OXY, Labels.cERR);
                                 SetHangarDoors(true);
                                 EnableGasTank(false, HangarOxyTanks);
                             }
                             else if(!AlreadyReguided)
                             {
-                                lcdHandler.logMessage("Tanks full, reguiding O²", Labels.WARNING);
+                                lcdHandler.logMessage("Tanks full, reguiding O²", Tags.OXY, Labels.WARN);
                                 EnableGasTank(true, HangarOxyTanks);
                                 AlreadyReguided = true;
                             }
@@ -163,21 +163,21 @@ namespace IngameScript
                             {
                                 if (hangarDoors[0].Status == DoorStatus.Closed && !AwaitHangarDoors)
                                 {
-                                    lcdHandler.logMessage("Dedicated tanks empty, activating main tanks");
+                                    lcdHandler.logMessage("Dedicated tanks empty, activating main tanks", Tags.OXY);
                                     EnableGasTank(false, HangarOxyTanks);
                                     EnableGasTank(true, ShipGasTanks);
                                     AwaitHangarDoors = false;
                                 }
                                 else if (hangarDoors[0].Status == DoorStatus.Closed)
                                 {
-                                    lcdHandler.logMessage("Hangar Doors closed");
+                                    lcdHandler.logMessage("Hangar Doors closed", Tags.OXY);
                                     AwaitHangarDoors = false;
                                 }
                                 else
                                 {
                                     if (!AwaitHangarDoors)
                                     {
-                                        lcdHandler.logMessage("Waiting for hangar doors to close");
+                                        lcdHandler.logMessage("Waiting for hangar doors to close", Tags.OXY);
                                     }
                                     AwaitHangarDoors = true;
                                     SetHangarDoors(false);
@@ -188,7 +188,7 @@ namespace IngameScript
                     else
                     {
                         OxyOverflow = false;
-                        lcdHandler.logMessage("Current O² Level: " + (currentAirLevel).ToString() + "%");
+                        lcdHandler.logMessage("Current O² Level: " + (currentAirLevel).ToString() + "%", Tags.OXY);
                     }
                     currentAirLevel = ventsHangar[0].GetOxygenLevel() * 100;
                 }

@@ -122,8 +122,8 @@ namespace IngameScript
             }
             catch (Exception)
             {
-                lcdHandler.logMessage("GGs could not be initiated, something is missing", Labels.ERROR);
                 GGOperational = false;
+                lcdHandler.logMessage("GGs could not be initiated, something is missing", Tags.GRA, Labels.cERR);
             }
         }
 
