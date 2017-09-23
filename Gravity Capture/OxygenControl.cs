@@ -133,6 +133,7 @@ namespace IngameScript
                     hangarState = AIR_STATE.Empty;
                     lcdHandler.logMessage("Hangar fully depressurized", Tags.OXY);
                     AlreadyReguided = false;
+                    SetHangarDoors(true);
                     return;
                 }
 

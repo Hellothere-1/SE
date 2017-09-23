@@ -46,6 +46,7 @@ namespace IngameScript
             {
                 lcdHandler = lcd;
                 parent = par;
+                setup();
             }
 
             void setup()
@@ -124,7 +125,7 @@ namespace IngameScript
                 bool freedirection = true;
 
                 var worldToAnchorLocalMatrix = Matrix.Transpose(Reference.WorldMatrix.GetOrientation());
-
+                
                 MyDetectedEntityInfo fighter;
 
                 if (HangarSensor.IsActive || true)
@@ -140,7 +141,7 @@ namespace IngameScript
 
                 Vector3D worldVelocities = (fighter.Velocity - Reference.GetShipVelocities().LinearVelocity);
                 Vector3D velocities = Vector3D.Transform(worldVelocities, worldToAnchorLocalMatrix);
-
+                
                 parent.Echo(Convert.ToString(velocities.X));
                 parent.Echo(Convert.ToString(velocities.Y));
                 parent.Echo(Convert.ToString(velocities.Z));
@@ -268,32 +269,6 @@ namespace IngameScript
                     default:
                         break;
                 }
-                /*
-                GGFr.SetGravity(9.81f - 5 * Convert.ToSingle(velocities.Z));
-                GGBa.SetGravity(9.81f + 5 * Convert.ToSingle(velocities.Z));
-                GGR.SetGravity(9.81f + 5 * Convert.ToSingle(velocities.X));
-                GGL.SetGravity(9.81f - 5 * Convert.ToSingle(velocities.X));
-
-                if (velocities.Y > 2 || Math.Abs(position.X)> 2 || Math.Abs(position.Y+20) > 2 || Math.Abs(position.Z) > 2)
-                {
-                    GGDis.OnOff(true);
-                    GGDis.SetGravity(-9.81f - 5 * Convert.ToSingle(velocities.Y));
-                    GGUpDo.SetGravity(Convert.ToSingle(-10 * (position.Y + 20) - 5 *velocities.Y));
-                }
-                else
-                {
-                    GGDis.OnOff(false);
-                    float upDoBase = Convert.ToSingle(-10*(position.Y + 20) - 5 * velocities.Y);
-                    float front = 20 * Convert.ToSingle(fighter.Orientation.Forward.Dot(Reference.WorldMatrix.Forward));
-                    float right = 40 * Convert.ToSingle(fighter.Orientation.Forward.Dot(Reference.WorldMatrix.Right));
-
-                    UpDown[0, 0].GravityAcceleration = upDoBase - front - right;
-                    UpDown[0, 1].GravityAcceleration = upDoBase - front + right;
-                    UpDown[1, 0].GravityAcceleration = upDoBase + front - right;
-                    UpDown[1, 1].GravityAcceleration = upDoBase + front + right;
-                }
-                */
-
             }
         }
     }

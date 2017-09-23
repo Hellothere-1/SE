@@ -18,7 +18,7 @@ namespace IngameScript
 {
     partial class Program
     {
-        public enum State {Error = -1, None = 0, Idle, OpenHangar, LaunchShip, CaptureShip};
+        public enum State {Error = -1, None = 0, Idle, OpenHangar, LaunchShip, CaptureShip, DockShip};
 
         private class StateMaschinePage
         {
@@ -56,7 +56,7 @@ namespace IngameScript
             {
 
                 scriptTimer = parent.GridTerminalSystem.GetBlockWithName("Script Timer") as IMyTimerBlock;
-                CodeTriggerTimer = parent.GridTerminalSystem.GetBlockWithName("StateMaschine Timer") as IMyTimerBlock;
+                CodeTriggerTimer = parent.GridTerminalSystem.GetBlockWithName("SM Timer") as IMyTimerBlock;
 
                 int lengthStateTable = Enum.GetNames(typeof(State)).Length - 2;
                 StateMaschinePage[] stateMaschine = new StateMaschinePage[lengthStateTable];
@@ -69,13 +69,13 @@ namespace IngameScript
                 //Check if logic part is missing------------------------------------------
                 if (scriptTimer == null || CodeTriggerTimer == null || stateMaschine == null)
                 {
-                    lcdHandler.logMessage("State Maschine or/and Timers not found, are the names correct?", Tags.STM, Labels.cERR);
+                    lcdHandler.logMessage("Timers not found, are the names correct?", Tags.STM, Labels.cERR);
                     currentState = State.Error;
                     return null;
                 }
                 else
                 {
-                    lcdHandler.logMessage("State Maschine and Timers found and activ", Tags.STM, Labels.BOOT);
+                    lcdHandler.logMessage("State Maschine operational", Tags.STM, Labels.BOOT);
                     currentState = State.Idle;
                     return stateMaschine;
                 }
@@ -106,7 +106,8 @@ namespace IngameScript
                 FillStateTableEntry(state_table[0], State.Idle, State.OpenHangar, true);
                 FillStateTableEntry(state_table[1], State.OpenHangar, State.None, false);
                 FillStateTableEntry(state_table[2], State.LaunchShip, State.OpenHangar, true);
-                FillStateTableEntry(state_table[3], State.CaptureShip, State.OpenHangar, true);
+                FillStateTableEntry(state_table[3], State.CaptureShip, State.DockShip, true);
+                FillStateTableEntry(state_table[4], State.DockShip, State.OpenHangar, true);
             }
 
             public void run(string argument)
@@ -207,9 +208,9 @@ namespace IngameScript
                         }
                         //---------------------------------------------
                     }
-                    catch (Exception e)
+                    catch (Exception)
                     {
-                        lcdHandler.logMessage(e.ToString(), Tags.STM, Labels.cERR);
+                        inputValid = false;
                     }
 
                     //Printing error for wrong input
