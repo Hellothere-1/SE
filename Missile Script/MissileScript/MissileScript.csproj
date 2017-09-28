@@ -96,7 +96,6 @@
     <Analyzer Include="C:\Users\Jari\AppData\Local\Microsoft\VisualStudio\15.0_8affdcbc\Extensions\dnrj5ied.if0\Analyzers\MDKAnalyzer.dll" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="TargetHandler.cs" />
     <Compile Include="MDK\Bootstrapper.cs" />
     <AdditionalFiles Include="MDK\MDK.options">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
