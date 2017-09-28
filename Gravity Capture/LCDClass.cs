@@ -219,7 +219,7 @@ namespace IngameScript
             //Checks if a lcd allows a label to be printed on it (Das klingt scheiße aber mir fällt gerade nichts besseres ein)
             bool displayHasLabel(IMyTextPanel lcd, Labels label, int tag)
             {
-                if (LCDDict[lcd][0] >= (int)label && (tag & (LCDDict[lcd])[1]) == tag ? true : false && lcd != null)
+                if ((LCDDict[lcd][0] >= (int)label && (tag & (LCDDict[lcd])[1]) == tag ? true : false && lcd != null) || label == Labels.BOOT)
                 {
                     return true;
                 }

@@ -30,8 +30,7 @@ namespace IngameScript
         public class StateMaschine
         {
             Program parent;
-            IMyTimerBlock scriptTimer;
-            IMyTimerBlock CodeTriggerTimer;
+            IMyTimerBlock timeoutTimer;
             StateMaschinePage[] stateMaschine;
             bool running;
             bool statusHangarDoors = false;
@@ -47,7 +46,6 @@ namespace IngameScript
                 if (currentState != State.Error)
                 {
                     running = true;
-                    startCodeTriggerTimer();
                 }
                 
             }
@@ -55,8 +53,7 @@ namespace IngameScript
             StateMaschinePage[] CreateStateMaschine()
             {
 
-                scriptTimer = parent.GridTerminalSystem.GetBlockWithName("Script Timer") as IMyTimerBlock;
-                CodeTriggerTimer = parent.GridTerminalSystem.GetBlockWithName("SM Timer") as IMyTimerBlock;
+                timeoutTimer = parent.GridTerminalSystem.GetBlockWithName("Timeout Trigger") as IMyTimerBlock;
 
                 int lengthStateTable = Enum.GetNames(typeof(State)).Length - 2;
                 StateMaschinePage[] stateMaschine = new StateMaschinePage[lengthStateTable];
@@ -67,9 +64,9 @@ namespace IngameScript
                 FillStateTable(stateMaschine);
 
                 //Check if logic part is missing------------------------------------------
-                if (scriptTimer == null || CodeTriggerTimer == null || stateMaschine == null)
+                if (timeoutTimer == null)
                 {
-                    lcdHandler.logMessage("Timers not found, are the names correct?", Tags.STM, Labels.cERR);
+                    lcdHandler.logMessage("Timer not found, should be named 'Timeout Trigger'", Tags.STM, Labels.cERR);
                     currentState = State.Error;
                     return null;
                 }
@@ -110,6 +107,12 @@ namespace IngameScript
                 FillStateTableEntry(state_table[4], State.DockShip, State.OpenHangar, true);
             }
 
+            void SetRunning(bool enable)
+            {
+                running = enable;
+                parent.StateTriggerNeeded = enable;
+            }
+            
             public void run(string argument)
             {
                 
@@ -117,7 +120,6 @@ namespace IngameScript
                 {
                     return;
                 }
-                stopCodeTriggerTimer();
                 if (running)
                 {
                     //TODO execute the code
@@ -126,7 +128,7 @@ namespace IngameScript
                     if (stateMaschine[(int)currentState - 1].waitForTrigger)
                     {
                         //Get into waiting mode
-                        running = false;
+                        SetRunning(false);
                         //-------------------------------
 
                         lcdHandler.logMessage("Changing into waiting mode", Tags.STM);
@@ -134,12 +136,12 @@ namespace IngameScript
                     else if (stateMaschine[(int)currentState - 1].nextState == State.None)
                     {
                         //Start Timer for reset to Idle
-                        scriptTimer.TriggerDelay = 60;
-                        scriptTimer.StartCountdown();
+                        timeoutTimer.TriggerDelay = 60;
+                        timeoutTimer.StartCountdown();
                         //-------------------------------
 
                         //Get into waiting mode
-                        running = false;
+                        SetRunning(false);
                         //-------------------------------
 
                         lcdHandler.logMessage("Changing into waiting mode + activated Timeout(60s)", Tags.STM);
@@ -152,7 +154,6 @@ namespace IngameScript
                         //-------------------------------
 
                         lcdHandler.logMessage("Switched to " + currentState.ToString(), Tags.STM, Labels.STAT);
-                        startCodeTriggerTimer();
                     }
                     lcdHandler.logHeadOnScreen(currentState, running, statusHangarDoors);
                 }
@@ -170,39 +171,37 @@ namespace IngameScript
                     string[] parts = argument.Split('_');
                     try
                     {
-                        if (parts[0] == stateMaschine[(int)currentState - 1].currentState.ToString())
+                        if (parts[1] == stateMaschine[(int)currentState - 1].currentState.ToString())
                         {
                             try
                             {
-                                currentState = (State)Enum.Parse(typeof(State), parts[1]);
+                                currentState = (State)Enum.Parse(typeof(State), parts[2]);
                                 lcdHandler.logMessage("Switched to " + currentState.ToString(), Tags.STM, Labels.STAT);
-                                running = true;
-                                startCodeTriggerTimer();
+                                SetRunning(true);
                                 inputValid = true;
                             }
                             catch (ArgumentException)
                             {
-                                lcdHandler.logMessage("Error : " + parts[1] + " nicht als State vorhanden", Tags.STM, Labels.WARN);
+                                lcdHandler.logMessage("Error : " + parts[2] + " nicht als State vorhanden", Tags.STM, Labels.WARN);
                                 return;
                             }
                         }
                         //-----------------------------------------
 
                         //Special repeated state change if form *_OpenHangar_nextState
-                        if (parts[1] == "OpenHangar" && currentState == State.OpenHangar && parts.Length == 3)
+                        if (parts[2] == "OpenHangar" && currentState == State.OpenHangar && parts.Length == 3)
                         {
                             try
                             {
-                                stateMaschine[(int)currentState - 1].nextState = (State)Enum.Parse(typeof(State), parts[2]);
-                                scriptTimer.StopCountdown();
-                                running = true;
-                                startCodeTriggerTimer();
+                                stateMaschine[(int)currentState - 1].nextState = (State)Enum.Parse(typeof(State), parts[3]);
+                                timeoutTimer.StopCountdown();
+                                SetRunning(true);
                                 inputValid = true;
 
                             }
                             catch (ArgumentException)
                             {
-                                lcdHandler.logMessage("Error : " + parts[2] + " nicht als State vorhanden", Tags.STM, Labels.WARN);
+                                lcdHandler.logMessage("Error : " + parts[3] + " nicht als State vorhanden", Tags.STM, Labels.WARN);
                                 return;
                             }
                         }
@@ -232,24 +231,6 @@ namespace IngameScript
                 currentState = stateMaschine[(int)currentState - 1].nextState;
             }
             //-----------------------------------------------------
-
-
-            //Called by script to stop the timer to avoid double calls
-            void stopCodeTriggerTimer()
-            {
-                CodeTriggerTimer.StopCountdown();
-            }
-            //----------------------------------------------------
-
-
-            //Called by script to reset timerdelay and start it
-            void startCodeTriggerTimer()
-            {
-                CodeTriggerTimer.Trigger();
-                CodeTriggerTimer.TriggerDelay = 1;
-                CodeTriggerTimer.StartCountdown();
-            }
-
         }
     }
 }

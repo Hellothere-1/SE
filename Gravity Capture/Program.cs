@@ -23,6 +23,12 @@ namespace IngameScript
         bool GravityControlOperational = false;
         bool StateMaschienOperational = false;
         bool OxygenControlOperational = false;
+
+        bool GravityTriggerNeeded = false;
+        bool StateTriggerNeeded = false;
+        bool OxygenTriggerNeeded = false;
+
+        short OxygenCounter = 0;
         
 
         //Needed classes------------------------------
@@ -60,15 +66,20 @@ namespace IngameScript
 
         public void Main(string argument)
         {
-            if (GravityControlOperational)
+            if (GravityControlOperational && (GravityTriggerNeeded || argument.StartsWith("GRA")))
             {
                 gravityHandler.Capture();
             }
-            if (OxygenControlOperational)
+            if (OxygenControlOperational && ((OxygenTriggerNeeded && OxygenCounter >= 60) || argument.StartsWith("AIR")))
             {
                 oxygenHandler.run(argument);
+                OxygenCounter = 0;
             }
-            if (StateMaschienOperational)
+            else
+            {
+                OxygenCounter++;
+            }
+            if (StateMaschienOperational && (StateTriggerNeeded || argument.StartsWith("STM")))
             {
                 stateHandler.run(argument);
             }
