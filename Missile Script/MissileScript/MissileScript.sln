@@ -1,0 +1,22 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.26730.15
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MissileScript", "MissileScript\MissileScript.csproj", "{24A5E3FB-0824-4E4B-BED9-53112E18F964}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{24A5E3FB-0824-4E4B-BED9-53112E18F964}.Debug|x64.ActiveCfg = Debug|x64
+		{24A5E3FB-0824-4E4B-BED9-53112E18F964}.Debug|x64.Build.0 = Debug|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {10620C17-B9A5-4B97-916E-3336D22C2843}
+	EndGlobalSection
+EndGlobal
