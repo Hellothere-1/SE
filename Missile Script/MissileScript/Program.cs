@@ -20,6 +20,8 @@ namespace IngameScript
     {
         enum Direction {Front, Back, Left, Right, Up, Down}
 
+        Vector3 offset = new Vector3( 0, 0, -0.4 );
+
         IMyTextPanel debug;
 
         IMyProgrammableBlock programmableBlock;
@@ -29,9 +31,13 @@ namespace IngameScript
 
         IMyBlockGroup starterBlocks;
 
+        TargetFuncs funcs;
         MyDetectedEntityInfo target;
+        Vector3D targetPosition;
+        Vector3D targetVelocity;
+        int ticks = 2;
 
-        List<IMyWarhead> warheads;
+        List<IMyWarhead> warheads = new List<IMyWarhead>();
         Dictionary<IMyGyro, int> gyroDict = new Dictionary<IMyGyro, int>();
         Dictionary<IMyThrust, int[]> thrusterDict = new Dictionary<IMyThrust, int[]>();
 
@@ -41,7 +47,7 @@ namespace IngameScript
         public Program()
         {
             programmableBlock = Me;
-
+            funcs = new TargetFuncs(this);
             debug = GridTerminalSystem.GetBlockWithName("Debug") as IMyTextPanel;
 
             //Search for starter Group with this pb in it
@@ -89,10 +95,6 @@ namespace IngameScript
 
         public void Main(string argument)
         {
-            Vector3D temp = GetShipAngularVelocity(control);
-            debug.WritePublicText(((int)(temp.X)).ToString() + "\n");
-            debug.WritePublicText(((int)(temp.Y)).ToString() + "\n", true);
-            debug.WritePublicText(((int)(temp.Z)).ToString() + "\n", true);
 
             if (argument == "Fire")
             {
@@ -107,30 +109,66 @@ namespace IngameScript
                     Echo("No target found");
                     return;
                 }
+                targetPosition = funcs.GetShipVelocity(target);
+                targetVelocity = funcs.GetShipVelocity(target);
+                debug.WritePublicText(target.Position.ToString());
                 merge.Enabled = false;
                 launched = true;
-                Echo("Launched");
                 return;
             }
-            //for tests (delete ! after test)
             if (launched)
             {
                 if (!init)
                 {
                     initMissile();
                     init = true;
+                    Echo("Init completed");
+                }
+                else
+                {
+                    Vector3D predPos = funcs.GetShipPredictedPosition(targetPosition, targetVelocity, ticks);
+                    Vector3D predAng = funcs.ToLocalSpherical(predPos, control, offset);
+                    Echo("Distance : " + predAng.X);
+                    if (predAng.X * 1.1 > visor.AvailableScanRange)
+                    {
+                        target = visor.Raycast(predPos);
+                        if (target.IsEmpty())
+                        {
+                            Echo("Lost target");
+                            return;
+                        }
+                        targetPosition = funcs.GetShipVelocity(target);
+                        targetVelocity = funcs.GetShipVelocity(target);
+                        ticks = 1;
+                        Echo("Target found again");
+                    }
+                    else
+                    {
+                        Echo("Ticks");
+                        ticks++;
+                    }
                 }
             }
-
         }
 
         void initMissile()
         {
             GridTerminalSystem.GetBlocksOfType(warheads);
-
             List<IMyThrust> thruster = new List<IMyThrust>();
             GridTerminalSystem.GetBlocksOfType(thruster);
             thrusterDict = thruster.ToDictionary(x => x, y => new int[] { 0 });
+            foreach (IMyWarhead boom in warheads)
+            {
+                if (!boom.GetValueBool("Safety"))
+                {
+                    boom.SetValueBool("Safety", true);
+                }
+            }
+            foreach (IMyThrust thrust in thrusterDict.Keys.ToList())
+            {
+                //thrust.SetValueFloat("Override", 100);
+            }
+            
 
         }
 
