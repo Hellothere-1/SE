@@ -20,9 +20,7 @@ namespace IngameScript
     {
         enum Direction {Front, Back, Left, Right, Up, Down}
 
-        Vector3 offset = new Vector3( 0, 0, -0.4 );
-
-        IMyTextPanel debug;
+        
 
         IMyProgrammableBlock programmableBlock;
         IMyCameraBlock visor;
@@ -33,12 +31,11 @@ namespace IngameScript
 
         TargetFuncs funcs;
         MyDetectedEntityInfo target;
-        Vector3D targetPosition;
-        Vector3D targetVelocity;
-        int ticks = 2;
+
+        Vector3 directions;
 
         List<IMyWarhead> warheads = new List<IMyWarhead>();
-        Dictionary<IMyGyro, int> gyroDict = new Dictionary<IMyGyro, int>();
+        List<Gyroscope> gyros = new List<Gyroscope>();
         Dictionary<IMyThrust, int[]> thrusterDict = new Dictionary<IMyThrust, int[]>();
 
         bool launched = false;
@@ -47,8 +44,7 @@ namespace IngameScript
         public Program()
         {
             programmableBlock = Me;
-            funcs = new TargetFuncs(this);
-            debug = GridTerminalSystem.GetBlockWithName("Debug") as IMyTextPanel;
+            
 
             //Search for starter Group with this pb in it
             List<IMyBlockGroup> allGroups = new List<IMyBlockGroup>();
@@ -87,8 +83,8 @@ namespace IngameScript
             merge = tempBlocks[0] as IMyShipMergeBlock;
             starterBlocks.GetBlocksOfType<IMyRemoteControl>(tempBlocks);
             control = tempBlocks[0] as IMyRemoteControl;
-            
-            
+
+            funcs = new TargetFuncs(this, visor);
             Echo("Setup completed, Missile ready to fire");
 
         }
@@ -98,22 +94,21 @@ namespace IngameScript
 
             if (argument == "Fire")
             {
-                if (visor.AvailableScanRange < 1000)
+                if (visor.AvailableScanRange < 5000)
                 {
                     Echo("Scanning is recharging");
                     return;
                 }
-                target = visor.Raycast(1000);
+                target = visor.Raycast(5000);
                 if (target.IsEmpty())
                 {
                     Echo("No target found");
                     return;
                 }
-                targetPosition = funcs.GetShipVelocity(target);
-                targetVelocity = funcs.GetShipVelocity(target);
-                debug.WritePublicText(target.Position.ToString());
+                funcs.LockTarget(target, control);
                 merge.Enabled = false;
                 launched = true;
+                Echo("Launched");
                 return;
             }
             if (launched)
@@ -126,26 +121,15 @@ namespace IngameScript
                 }
                 else
                 {
-                    Vector3D predPos = funcs.GetShipPredictedPosition(targetPosition, targetVelocity, ticks);
-                    Vector3D predAng = funcs.ToLocalSpherical(predPos, control, offset);
-                    Echo("Distance : " + predAng.X);
-                    if (predAng.X * 1.1 > visor.AvailableScanRange)
+                    directions = funcs.run(control);
+                    SetGyros(directions.Z, directions.Y, 0);
+                    if (directions.Y == 0 && directions.Z == 0)
                     {
-                        target = visor.Raycast(predPos);
-                        if (target.IsEmpty())
-                        {
-                            Echo("Lost target");
-                            return;
-                        }
-                        targetPosition = funcs.GetShipVelocity(target);
-                        targetVelocity = funcs.GetShipVelocity(target);
-                        ticks = 1;
-                        Echo("Target found again");
+                        Echo("Target lost");
                     }
                     else
                     {
-                        Echo("Ticks");
-                        ticks++;
+                        Echo("Tracking target");
                     }
                 }
             }
@@ -164,19 +148,27 @@ namespace IngameScript
                     boom.SetValueBool("Safety", true);
                 }
             }
+            List<IMyGyro> GyrosList = new List<IMyGyro>();
+            GridTerminalSystem.GetBlocksOfType(GyrosList);
+            foreach (IMyGyro gyro in GyrosList)
+            {
+                gyro.GyroOverride = true;
+                gyros.Add(new Gyroscope(gyro, control));
+            }
+
             foreach (IMyThrust thrust in thrusterDict.Keys.ToList())
             {
-                //thrust.SetValueFloat("Override", 100);
+                thrust.SetValueFloat("Override", 100);
             }
             
 
         }
 
-        public Vector3D GetShipAngularVelocity(IMyShipController dataBlock)
+        void SetGyros(float pitch, float yaw, float roll)
         {
-            var worldLocalVelocities = dataBlock.GetShipVelocities().AngularVelocity;
-            var worldToAnchorLocalMatrix = Matrix.Transpose(dataBlock.WorldMatrix.GetOrientation());
-            return Vector3D.Transform(worldLocalVelocities, worldToAnchorLocalMatrix);
+            float[] controls = new float[] { -pitch, yaw, -roll, pitch, -yaw, roll };
+            foreach (Gyroscope g in gyros)
+                g.SetRotation(controls);
         }
     }
 }
