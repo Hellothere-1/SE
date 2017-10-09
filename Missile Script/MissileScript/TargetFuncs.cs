@@ -27,6 +27,16 @@ namespace IngameScript
             IMyCameraBlock visor;
             IMyTextPanel debug;
 
+            //Variables for hit calculation
+            int TotalMass = -1;
+            float MaxThrust = -1;
+            float MaxAcceleration = -1;
+
+            double currentVel;
+
+            //
+
+
             MyDetectedEntityInfo TargetInfo;
             Vector3D predictedHitPoint;
             Vector3D predictedPosition;
@@ -76,7 +86,65 @@ namespace IngameScript
                 double relativeVelocity = lastDistance - predictedPositionAngles.X;
                 double timeFactor = 60D /(double) tick;
                 relativeVelocity = relativeVelocity * timeFactor;
+
+
+                if (TotalMass == -1)
+                {
+                    TotalMass = control.CalculateShipMass().TotalMass;
+                }
+                if (MaxThrust == -1)
+                {
+                    MaxThrust = 0;
+                    List<IMyThrust> thruster = new List<IMyThrust>();
+                    parent.GridTerminalSystem.GetBlocksOfType(thruster);
+                    foreach (IMyThrust thrust in thruster)
+                    {
+                        if (thrust.WorldMatrix.Forward == control.WorldMatrix.Backward)
+                        {
+                            MaxThrust += thrust.MaxThrust;
+                        }
+                    }
+                }
+                if (MaxAcceleration == -1)
+                {
+                    MaxAcceleration = MaxThrust / TotalMass;
+                }
+                /*
+                currentVel = control.GetShipSpeed();
+                float difference =(float) (100 - currentVel);
+
+                float timeToMaxSpeed = difference == 0 ? 0 : difference / MaxAcceleration;
+                float timeToZeroSpeed = relativeVelocity < 0 ? (float)(-relativeVelocity / MaxAcceleration) : 0;
+                float timeInPositivSpeed = timeToMaxSpeed - timeToZeroSpeed;*/
+
+                debug.WritePublicText("Real : " + relativeVelocity.ToString() + "m/s \n");
+
                 
+
+                double ownSpeed = control.GetShipSpeed();
+                debug.WritePublicText("Speed : " + ownSpeed.ToString() + "m/s \n", true);
+                debug.WritePublicText("Acceleration : " + MaxAcceleration.ToString() + "m/s² \n", true);
+                double timeToMax;
+                double distanceAtMaxSpeed;
+                if (ownSpeed <= 99)
+                {
+                    timeToMax = (100 - ownSpeed) / MaxAcceleration;
+                    distanceAtMaxSpeed = (relativeVelocity + (MaxAcceleration * timeToMax) / 2) * timeToMax + predictedPositionAngles.X;
+                }
+                else
+                {
+                    timeToMax = 0;
+                    distanceAtMaxSpeed = predictedPositionAngles.X;
+                }
+                debug.WritePublicText("Time to Max: " + timeToMax.ToString() + "s \n", true);
+                debug.WritePublicText("Distance : " + distanceAtMaxSpeed.ToString() + "m \n", true);
+                timeToTarget = (float) (distanceAtMaxSpeed / (relativeVelocity + (100 - ownSpeed)) + timeToMax);
+
+                
+                debug.WritePublicText("Time : " +timeToTarget.ToString() + "s \n", true);
+
+
+                /*Trying heavy calculations to ensure correct point
                 debug.WritePublicText("Real : " + relativeVelocity.ToString() + "m/s \n");
 
                 //relativeVelocity = relativeVelocity + (101 - control.GetShipSpeed());
@@ -84,9 +152,11 @@ namespace IngameScript
                     relativeVelocity = 25; 
 
                 debug.WritePublicText("Corrected : " + relativeVelocity.ToString() + "m/s \n", true);
+                */
 
 
-                timeToTarget = (float) (predictedPositionAngles.X / relativeVelocity);
+
+                //timeToTarget = (float) (predictedPositionAngles.X / relativeVelocity);
                 predictedHitPoint = TargetInfo.Position + timeToTarget * TargetInfo.Velocity;
                 lastDistance = predictedPositionAngles.X;
             }
