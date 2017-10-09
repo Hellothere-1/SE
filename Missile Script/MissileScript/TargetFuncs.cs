@@ -31,9 +31,6 @@ namespace IngameScript
             int TotalMass = -1;
             float MaxThrust = -1;
             float MaxAcceleration = -1;
-
-            double currentVel;
-
             //
 
 
@@ -129,7 +126,7 @@ namespace IngameScript
                 if (ownSpeed <= 99)
                 {
                     timeToMax = (100 - ownSpeed) / MaxAcceleration;
-                    distanceAtMaxSpeed = (relativeVelocity + (MaxAcceleration * timeToMax) / 2) * timeToMax + predictedPositionAngles.X;
+                    distanceAtMaxSpeed = predictedPositionAngles.X - (relativeVelocity + (MaxAcceleration * timeToMax) / 2) * timeToMax;
                 }
                 else
                 {
