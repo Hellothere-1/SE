@@ -109,54 +109,22 @@ namespace IngameScript
                 {
                     MaxAcceleration = MaxThrust / TotalMass;
                 }
-                /*
-                currentVel = control.GetShipSpeed();
-                float difference =(float) (100 - currentVel);
 
-                float timeToMaxSpeed = difference == 0 ? 0 : difference / MaxAcceleration;
-                float timeToZeroSpeed = relativeVelocity < 0 ? (float)(-relativeVelocity / MaxAcceleration) : 0;
-                float timeInPositivSpeed = timeToMaxSpeed - timeToZeroSpeed;*/
-
-                debug.WritePublicText("Real : " + relativeVelocity.ToString() + "m/s \n");
-
-                
 
                 double ownSpeed = control.GetShipSpeed();
-                debug.WritePublicText("Speed : " + ownSpeed.ToString() + "m/s \n", true);
-                debug.WritePublicText("Acceleration : " + MaxAcceleration.ToString() + "m/s² \n", true);
                 double timeToMax;
                 double distanceAtMaxSpeed;
                 if (ownSpeed <= 99)
                 {
                     timeToMax = (100 - ownSpeed) / MaxAcceleration;
-                    distanceAtMaxSpeed = (relativeVelocity + (MaxAcceleration * timeToMax) / 2) * timeToMax + predictedPositionAngles.X;
+                    distanceAtMaxSpeed = predictedPositionAngles.X - (relativeVelocity + (MaxAcceleration * timeToMax) / 2) * timeToMax;
                 }
                 else
                 {
                     timeToMax = 0;
                     distanceAtMaxSpeed = predictedPositionAngles.X;
                 }
-                debug.WritePublicText("Time to Max: " + timeToMax.ToString() + "s \n", true);
-                debug.WritePublicText("Distance : " + distanceAtMaxSpeed.ToString() + "m \n", true);
                 timeToTarget = (float) (distanceAtMaxSpeed / (relativeVelocity + (100 - ownSpeed)) + timeToMax);
-
-                
-                debug.WritePublicText("Time : " +timeToTarget.ToString() + "s \n", true);
-
-
-                /*Trying heavy calculations to ensure correct point
-                debug.WritePublicText("Real : " + relativeVelocity.ToString() + "m/s \n");
-
-                //relativeVelocity = relativeVelocity + (101 - control.GetShipSpeed());
-                if (relativeVelocity <= 0)
-                    relativeVelocity = 25; 
-
-                debug.WritePublicText("Corrected : " + relativeVelocity.ToString() + "m/s \n", true);
-                */
-
-
-
-                //timeToTarget = (float) (predictedPositionAngles.X / relativeVelocity);
                 predictedHitPoint = TargetInfo.Position + timeToTarget * TargetInfo.Velocity;
                 lastDistance = predictedPositionAngles.X;
             }
