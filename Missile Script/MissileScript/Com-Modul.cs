@@ -18,7 +18,7 @@ namespace IngameScript
 {
     partial class Program
     {
-        enum Tag { MES, RES, BAD };
+        public enum Tag { MES, RES, BAD };
 
 
 
@@ -56,9 +56,8 @@ namespace IngameScript
 
             /*
              *  Accepted Formats 
-             *  COM_MES_target_id_key_message
-             *  COM_MES_target_id_message
-             *  COM_RES_target_id_message
+             *  COM_MES_target_id_sender_key_message
+             *  COM_MES_target_id_sender_message
              *  COM_RES_target_id
              *  COM_BAD_target
             */
@@ -69,15 +68,16 @@ namespace IngameScript
             List<Message> buffer = new List<Message>();
             int pointer;
             int currentID;
-
+            string ownName;
             int RTT = 15;
 
             bool ComWorking = false;
 
-            public ComModule(Program par, IMyRadioAntenna ant)
+            public ComModule(Program par, IMyRadioAntenna ant, string name)
             {
                 parent = par;
                 antenna = ant;
+                ownName = name;
                 init();
             }
 
@@ -127,10 +127,7 @@ namespace IngameScript
                     }
                     else
                     {
-                        Message save = buffer[i];
-                        save.tick = 0;
-                        buffer.RemoveAt(i);
-                        buffer.Add(save);
+                        RepeatMessage(i);
                     }
                 }
             }
@@ -138,10 +135,71 @@ namespace IngameScript
             string ProcessMessage(string message)
             {
                 string[] parts = message.Split('_');
+                string output = "";
                 try
                 {
-                    Tag kindOf = Enum.Parse(typeof(Tag), parts[1]);
+                    Tag kindOf = (Tag)Enum.Parse(typeof(Tag), parts[1]);
+                    switch (kindOf)
+                    {
+                        case Tag.BAD:
+                            CheckMessage(parts[0]);
+                            break;
+                        case Tag.RES:
+                            if (parts[2] == ownName)
+                            {
+                                MessageResponce(int.Parse(parts[3]));
+                            }
+                            break;
+                        case Tag.MES:
+                            if (parts[2] == ownName)
+                            {
+                                SendResponce(parts[4], int.Parse(parts[3]));
+                                if (parts.Length > 6)
+                                {
+
+                                }
+                            }
+                            break;
+                    }
                 }
+                catch(Exception)
+                {
+
+                }
+                return output;
+            }
+
+
+            void MessageResponce(int ID)
+            {
+                foreach (Message obj in buffer)
+                {
+                    if (obj.isEqual(ID))
+                    {
+                        buffer.Remove(obj);
+                        break;
+                    }
+                }
+            }
+
+            void CheckMessage(string target)
+            {
+                for (int i = 0; i < pointer; i++)
+                {
+                    if (buffer[i].targetName == target)
+                    {
+                        RepeatMessage(i);
+                    }
+                }
+            }
+
+
+            void RepeatMessage(int index)
+            {
+                Message save = buffer[index];
+                save.tick = 0;
+                buffer.RemoveAt(index);
+                buffer.Add(save);
             }
 
             string BuildMessage(Message obj)
@@ -166,9 +224,19 @@ namespace IngameScript
                 }
                 return mes;
             }
-            
 
-            bool SendMessage(Tag tag, string target, string message, string key = "", MyTransmitTarget group = MyTransmitTarget.Default)
+            public bool SendResponce(string target, int ID, MyTransmitTarget group = MyTransmitTarget.Ally)
+            {
+                if (ComWorking)
+                {
+                    Message mes = new Message(Tag.RES, target, "", ID, "", group);
+                    buffer.Add(mes);
+                    return true;
+                }
+                return false;
+            }
+
+            public bool SendMessage(Tag tag, string target, string message, string key = "", MyTransmitTarget group = MyTransmitTarget.Ally)
             {
                 if (ComWorking)
                 {
