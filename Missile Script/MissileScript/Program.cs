@@ -21,7 +21,7 @@ namespace IngameScript
         enum Direction {Front, Back, Left, Right, Up, Down}
 
         //int lengthSave;
-        //Maybe save some 
+        //Maybe save some amount of raycast distance for emergency use
 
         IMyProgrammableBlock programmableBlock;
         IMyCameraBlock visor;
@@ -31,7 +31,6 @@ namespace IngameScript
         IMyBlockGroup starterBlocks;
 
         TargetFuncs funcs;
-        MyDetectedEntityInfo target;
 
         Vector3 directions;
 
@@ -45,8 +44,6 @@ namespace IngameScript
         public Program()
         {
             programmableBlock = Me;
-            
-
             //Search for starter Group with this pb in it
             List<IMyBlockGroup> allGroups = new List<IMyBlockGroup>();
             GridTerminalSystem.GetBlockGroups(allGroups);
@@ -121,6 +118,7 @@ namespace IngameScript
                     Echo("Scanning is recharging");
                     return;
                 }
+                MyDetectedEntityInfo target;
                 target = visor.Raycast(5000);
                 if (target.IsEmpty())
                 {
