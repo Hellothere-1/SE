@@ -21,7 +21,7 @@ namespace IngameScript
         public class TargetFuncs
         {
             Vector3 offset = new Vector3(0, 0, -0.4);
-
+            enum Side {Front, Back, Left, Right, Up, Down};
             
             Program parent;
             IMyCameraBlock visor;
@@ -33,6 +33,8 @@ namespace IngameScript
             float MaxAcceleration = -1;
             //
 
+            Dictionary<Side, List<IMyThrust>> thrusters = new Dictionary<Side, List<IMyThrust>>();
+            Dictionary<Side, float> thrust = new Dictionary<Side, float>();
 
             MyDetectedEntityInfo TargetInfo;
             Vector3D predictedHitPoint;
@@ -64,6 +66,8 @@ namespace IngameScript
                 UpdateHitPosition(control, ticksSinceLastHit);
                 Vector3D course = GetBurnVector(control, true);
                 course = ToLocalSpherical(course, control);
+                course.Y = 10 * course.Y / Math.PI;
+                course.Z = 10 * course.Z / Math.PI;
                 lastCourse = course;
                 if (ticks != 1)
                 {

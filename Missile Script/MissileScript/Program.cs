@@ -20,7 +20,8 @@ namespace IngameScript
     {
         enum Direction {Front, Back, Left, Right, Up, Down}
 
-        
+        //int lengthSave;
+        //Maybe save some 
 
         IMyProgrammableBlock programmableBlock;
         IMyCameraBlock visor;
@@ -73,17 +74,38 @@ namespace IngameScript
                 Echo("Starter Group not found, is this Programmable Block in it?");
                 return;
             }
-            //Hopefully found the group
-            
             List<IMyTerminalBlock> tempBlocks = new List<IMyTerminalBlock>();
-            starterBlocks.GetBlocksOfType<IMyCameraBlock>(tempBlocks);
-            visor = tempBlocks[0] as IMyCameraBlock;
-            visor.EnableRaycast = true;
-            starterBlocks.GetBlocksOfType<IMyShipMergeBlock>(tempBlocks);
-            merge = tempBlocks[0] as IMyShipMergeBlock;
-            starterBlocks.GetBlocksOfType<IMyRemoteControl>(tempBlocks);
-            control = tempBlocks[0] as IMyRemoteControl;
-
+            try
+            {
+                starterBlocks.GetBlocksOfType<IMyCameraBlock>(tempBlocks);
+                visor = tempBlocks[0] as IMyCameraBlock;
+                visor.EnableRaycast = true;
+                Echo("Camera found and activ");
+            }
+            catch (Exception)
+            {
+                Echo("Camera could not be found in starter group");
+            }
+            try
+            {
+                starterBlocks.GetBlocksOfType<IMyShipMergeBlock>(tempBlocks);
+                merge = tempBlocks[0] as IMyShipMergeBlock;
+                Echo("Merge Block found and activ");
+            }
+            catch (Exception)
+            {
+                Echo("Merge Block could not be found in starter group");
+            }
+            try
+            {
+                starterBlocks.GetBlocksOfType<IMyRemoteControl>(tempBlocks);
+                control = tempBlocks[0] as IMyRemoteControl;
+                Echo("Remote Control found and activ");
+            }
+            catch (Exception)
+            {
+                Echo("Remote Control could not be found in starter group");
+            }
             funcs = new TargetFuncs(this, visor);
             Echo("Setup completed, Missile ready to fire");
 
@@ -102,6 +124,7 @@ namespace IngameScript
                 target = visor.Raycast(5000);
                 if (target.IsEmpty())
                 {
+                    //Search in cone form
                     Echo("No target found");
                     return;
                 }
