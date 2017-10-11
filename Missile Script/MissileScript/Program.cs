@@ -18,7 +18,12 @@ namespace IngameScript
 {
     partial class Program : MyGridProgram
     {
-        enum Direction {Front, Back, Left, Right, Up, Down}
+        private int group = 0;
+        private int volley = 0;
+        private int id = 0;
+        private String comPartner = "";
+        private String key = "";
+
 
         //int lengthSave;
         //Maybe save some amount of raycast distance for emergency use
@@ -27,7 +32,7 @@ namespace IngameScript
         IMyCameraBlock visor;
         IMyRemoteControl control;
         IMyShipMergeBlock merge;
-
+        IMyRadioAntenna antenna;
         IMyBlockGroup starterBlocks;
 
         TargetFuncs funcs;
@@ -36,8 +41,10 @@ namespace IngameScript
 
         List<IMyWarhead> warheads = new List<IMyWarhead>();
         List<Gyroscope> gyros = new List<Gyroscope>();
-        Dictionary<IMyThrust, int[]> thrusterDict = new Dictionary<IMyThrust, int[]>();
 
+        bool setupSuccess = false;
+
+        bool launchSequence = false;
         bool launched = false;
         bool init = false;
 
@@ -71,6 +78,8 @@ namespace IngameScript
                 Echo("Starter Group not found, is this Programmable Block in it?");
                 return;
             }
+
+            //Starter group is found, trying to acquire the needed compoents
             List<IMyTerminalBlock> tempBlocks = new List<IMyTerminalBlock>();
             try
             {
@@ -82,6 +91,7 @@ namespace IngameScript
             catch (Exception)
             {
                 Echo("Camera could not be found in starter group");
+                return;
             }
             try
             {
@@ -92,6 +102,7 @@ namespace IngameScript
             catch (Exception)
             {
                 Echo("Merge Block could not be found in starter group");
+                return;
             }
             try
             {
@@ -102,36 +113,37 @@ namespace IngameScript
             catch (Exception)
             {
                 Echo("Remote Control could not be found in starter group");
+                return;
             }
+            try
+            {
+                starterBlocks.GetBlocksOfType<IMyRadioAntenna>(tempBlocks);
+                antenna = tempBlocks[0] as IMyRadioAntenna;
+                Echo("Radio Antenna found and activ");
+            }
+            catch (Exception)
+            {
+                Echo("Antenna could not be found in starter group");
+                return;
+            }
+            setupSuccess = true;
             funcs = new TargetFuncs(this, visor);
             Echo("Setup completed, Missile ready to fire");
-
+            //Components found, setup complete, missile ready to fire 
         }
 
         public void Main(string argument)
         {
-
-            if (argument == "Fire")
+            if (!setupSuccess)
             {
-                if (visor.AvailableScanRange < 5000)
-                {
-                    Echo("Scanning is recharging");
-                    return;
-                }
-                MyDetectedEntityInfo target;
-                target = visor.Raycast(5000);
-                if (target.IsEmpty())
-                {
-                    //Search in cone form
-                    Echo("No target found");
-                    return;
-                }
-                funcs.LockTarget(target, control);
-                merge.Enabled = false;
-                launched = true;
-                Echo("Launched");
                 return;
             }
+
+            if (argument.StartsWith("COM"))
+            {
+
+            }
+
             if (launched)
             {
                 if (!init)
@@ -153,15 +165,37 @@ namespace IngameScript
                         Echo("Tracking target");
                     }
                 }
+                //TODO currently only one argument is needed, if more are needed delete the following return
+                return;
+            }
+            if (argument == "Fire")
+            {
+                if (visor.AvailableScanRange < 5000)
+                {
+                    Echo("Scanning is recharging");
+                    return;
+                }
+                MyDetectedEntityInfo target;
+                target = visor.Raycast(5000);
+                if (target.IsEmpty())
+                {
+                    //Search in cone form
+                    //TODO launch sequence without direct line of sight possible, redirecting missile per antenna
+                    Echo("No target found");
+                    return;
+                }
+                funcs.LockTarget(target, control);
+                merge.Enabled = false;
+                launched = true;
+                Echo("Launched");
+                return;
             }
         }
 
         void initMissile()
         {
+            //TODO arm warheads at launch? or better to arm them after time/correct launch?
             GridTerminalSystem.GetBlocksOfType(warheads);
-            List<IMyThrust> thruster = new List<IMyThrust>();
-            GridTerminalSystem.GetBlocksOfType(thruster);
-            thrusterDict = thruster.ToDictionary(x => x, y => new int[] { 0 });
             foreach (IMyWarhead boom in warheads)
             {
                 if (!boom.GetValueBool("Safety"))
@@ -169,6 +203,7 @@ namespace IngameScript
                     boom.SetValueBool("Safety", true);
                 }
             }
+
             List<IMyGyro> GyrosList = new List<IMyGyro>();
             GridTerminalSystem.GetBlocksOfType(GyrosList);
             foreach (IMyGyro gyro in GyrosList)
@@ -176,13 +211,8 @@ namespace IngameScript
                 gyro.GyroOverride = true;
                 gyros.Add(new Gyroscope(gyro, control));
             }
-
-            foreach (IMyThrust thrust in thrusterDict.Keys.ToList())
-            {
-                thrust.SetValueFloat("Override", 100);
-            }
-            
-
+            //thrust.SetValueFloat("Override", 100);
+            //Method used to set override, should be in target function class
         }
 
         void SetGyros(float pitch, float yaw, float roll)

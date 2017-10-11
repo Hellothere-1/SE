@@ -25,7 +25,6 @@ namespace IngameScript
             
             Program parent;
             IMyCameraBlock visor;
-            IMyTextPanel debug;
 
             //Variables for hit calculation
             int TotalMass = -1;
@@ -51,7 +50,6 @@ namespace IngameScript
             {
                 parent = par;
                 visor = cam;
-                debug = parent.GridTerminalSystem.GetBlockWithName("Debug") as IMyTextPanel;
             }
             
 
