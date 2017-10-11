@@ -101,7 +101,7 @@ namespace IngameScript
 
             }
 
-            void Run()
+            public void Run()
             {
                 if (!ComWorking)
                 {
@@ -135,7 +135,7 @@ namespace IngameScript
                 }
             }
 
-            string ProcessMessage(string message)
+            public string ProcessMessage(string message)
             {
                 string[] parts = message.Split('_');
                 string output = "";
@@ -160,7 +160,7 @@ namespace IngameScript
                                 output = parts[5];
                                 if (parts.Length > 6)
                                 {
-                                    output = output + parts[6];
+                                    output = output + "_" + parts[6];
                                 }
                             }
                             break;
@@ -227,7 +227,7 @@ namespace IngameScript
                 return mes;
             }
 
-            public void SendError()
+            void SendError()
             {
                 if (ComWorking)
                 {
@@ -236,7 +236,7 @@ namespace IngameScript
                 }
             }
 
-            public void SendResponce(string target, int ID, MyTransmitTarget group = MyTransmitTarget.Ally)
+            void SendResponce(string target, int ID, MyTransmitTarget group = MyTransmitTarget.Ally)
             {
                 if (ComWorking)
                 {
@@ -245,11 +245,11 @@ namespace IngameScript
                 }
             }
 
-            public void SendMessage(Tag tag, string target, string message, string key = "", MyTransmitTarget group = MyTransmitTarget.Ally)
+            public void SendMessage(string target, string message, string key = "", MyTransmitTarget group = MyTransmitTarget.Ally)
             {
                 if (ComWorking)
                 {
-                    Message mes = new Message(tag, target, message, currentID, key, group);
+                    Message mes = new Message(Tag.MES, target, message, currentID, key, group);
                     buffer.Add(mes);
                     currentID++;
                 }
