@@ -52,7 +52,7 @@ namespace IngameScript
 
         public class ComModule
         {
-           
+
 
             /*
              *  Accepted Formats 
@@ -97,7 +97,7 @@ namespace IngameScript
                 }
                 pointer = 0;
                 rnd = new Random(antenna.CustomNameWithFaction.GetHashCode());
-                currentID =(int) (rnd.NextDouble() * rnd.Next());
+                currentID = (int)(rnd.NextDouble() * rnd.Next());
 
             }
 
@@ -166,13 +166,13 @@ namespace IngameScript
                             break;
                     }
                 }
-                catch(Exception)
+                catch (Exception)
                 {
                     SendError();
                 }
                 return output;
             }
-            
+
             void MessageResponce(int ID)
             {
                 foreach (Message obj in buffer)
@@ -195,7 +195,7 @@ namespace IngameScript
                     }
                 }
             }
-            
+
             void RepeatMessage(int index)
             {
                 Message save = buffer[index];
@@ -235,7 +235,7 @@ namespace IngameScript
 
                 }
             }
-            
+
             public void SendResponce(string target, int ID, MyTransmitTarget group = MyTransmitTarget.Ally)
             {
                 if (ComWorking)

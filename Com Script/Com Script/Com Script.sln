@@ -1,0 +1,22 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.26730.15
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Com Script", "Com Script\Com Script.csproj", "{78E6EC19-89F3-463E-AAB1-82B3DC029D4A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{78E6EC19-89F3-463E-AAB1-82B3DC029D4A}.Debug|x64.ActiveCfg = Debug|x64
+		{78E6EC19-89F3-463E-AAB1-82B3DC029D4A}.Debug|x64.Build.0 = Debug|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {6AE27CF9-D101-4B2B-91E9-D7C71A348F6B}
+	EndGlobalSection
+EndGlobal
