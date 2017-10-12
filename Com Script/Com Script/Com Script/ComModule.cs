@@ -90,6 +90,13 @@ namespace IngameScript
              *  COM_MES_target_id_sender_message
              *  COM_RES_target_id
              *  COM_BAD_target
+             *  
+             *  
+             *  Idea : Make Dict <target, list<messages>
+             *  Sort list after ID 
+             *  Mes with ID_M ack all messages with ID < ID_M
+             *  (Commulative ACKs)
+             *  
             */
 
             Program parent;
