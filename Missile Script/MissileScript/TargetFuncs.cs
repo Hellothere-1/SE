@@ -21,7 +21,7 @@ namespace IngameScript
         public class TargetFuncs
         {
             Vector3 offset = new Vector3(0, 0, -0.4);
-            enum Side {Front, Back, Left, Right, Up, Down};
+            enum Side {RIGHT, UP, BACK, LEFT, DOWN, FRONT};
             
             Program parent;
             IMyCameraBlock visor;
@@ -73,7 +73,30 @@ namespace IngameScript
                 }
                 return course;
             }
-            
+
+
+            public void init(IMyRemoteControl control)
+            {
+                TotalMass = control.CalculateShipMass().TotalMass;
+
+                List<IMyThrust> thruster = new List<IMyThrust>();
+                parent.GridTerminalSystem.GetBlocksOfType(thruster);
+                foreach (IMyThrust thru in thruster)
+                {
+                    for (int i = 0; i < 6; i++)
+                    {
+                        if (thru.WorldMatrix.Forward == GetAxis(i, control))
+                        {
+                            thrusters[(Side) i].Add(thru);
+                            thrust[(Side)i] = thrust[(Side)i] + thru.MaxThrust;
+                        }
+                    }
+                }
+                //temporary Solution, advanced Flight computing needed
+
+                MaxThrust = thrust[Side.BACK];
+                MaxAcceleration = MaxThrust / TotalMass;
+            }
 
             void UpdateHitPosition(IMyRemoteControl control, int tick)
             {
@@ -85,30 +108,6 @@ namespace IngameScript
                 double relativeVelocity = lastDistance - predictedPositionAngles.X;
                 double timeFactor = 60D /(double) tick;
                 relativeVelocity = relativeVelocity * timeFactor;
-
-
-                if (TotalMass == -1)
-                {
-                    TotalMass = control.CalculateShipMass().TotalMass;
-                }
-                if (MaxThrust == -1)
-                {
-                    MaxThrust = 0;
-                    List<IMyThrust> thruster = new List<IMyThrust>();
-                    parent.GridTerminalSystem.GetBlocksOfType(thruster);
-                    foreach (IMyThrust thrust in thruster)
-                    {
-                        if (thrust.WorldMatrix.Forward == control.WorldMatrix.Backward)
-                        {
-                            MaxThrust += thrust.MaxThrust;
-                        }
-                    }
-                }
-                if (MaxAcceleration == -1)
-                {
-                    MaxAcceleration = MaxThrust / TotalMass;
-                }
-
 
                 double ownSpeed = control.GetShipSpeed();
                 double timeToMax;
@@ -217,7 +216,24 @@ namespace IngameScript
                 lastDistance = predictedPositionAngles.X;
             }
 
-
+            private Vector3D GetAxis(int dimension, IMyTerminalBlock block)
+            {
+                switch (dimension)
+                {
+                        case 0:
+                            return block.WorldMatrix.Right;
+                        case 1:
+                            return block.WorldMatrix.Up;
+                        case 2:
+                            return block.WorldMatrix.Backward;
+                        case 3:
+                            return -block.WorldMatrix.Right;
+                        case 4:
+                            return -block.WorldMatrix.Up;
+                        default:
+                            return -block.WorldMatrix.Backward;
+                    }
+            }
         }
     }
 }
