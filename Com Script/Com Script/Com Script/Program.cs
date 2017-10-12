@@ -22,28 +22,40 @@ namespace IngameScript
         ComModule comHandler;
         bool isSender = false;
         IMyBeacon myBeacon;
+        IMyTextPanel output;
+
 
         public Program()
         {
             List<IMyTerminalBlock> temp = new List<IMyTerminalBlock>();
             GridTerminalSystem.GetBlocksOfType<IMyRadioAntenna>(temp);
             IMyRadioAntenna antenna = temp[0] as IMyRadioAntenna;
-            
-            comHandler = new ComModule(this, antenna, "Sender");
+            GridTerminalSystem.GetBlocksOfType<IMyTextPanel>(temp);
+            output = temp[0] as IMyTextPanel;
+            output.WritePublicText("");
+            //TODO assign antenna to pb in script (even possible?)s
             if (Me.CustomName.Contains("Send"))
             {
                 isSender = true;
+                comHandler = new ComModule(this, antenna, "Sender");
+                Me.CustomName = "PB_Sender";
             }
             else
             {
                 GridTerminalSystem.GetBlocksOfType<IMyBeacon>(temp);
                 myBeacon = temp[0] as IMyBeacon;
+                comHandler = new ComModule(this, antenna, "Reciever");
+                Me.CustomName = "PB_Reciever";
             }
         }
 
 
         public void Main(string argument)
         {
+            if (argument != "")
+            {
+                output.WritePublicText("Input: " + argument + "\n", true);
+            }
             if (argument.StartsWith("COM"))
             {
                 string input = comHandler.ProcessMessage(argument);
@@ -58,9 +70,7 @@ namespace IngameScript
             }
             if (argument.StartsWith("Send"))
             {
-                Me.CustomName = Me.CustomName + " |";
                 comHandler.SendMessage("Reciever", "SET ANTENNA ON", key);
-                Me.CustomName = Me.CustomName + " 0";
             }
             comHandler.Run();
         }

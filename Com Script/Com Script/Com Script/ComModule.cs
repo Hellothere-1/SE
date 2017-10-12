@@ -25,6 +25,7 @@ namespace IngameScript
         class Message
         {
             public int ID;
+            public int round;
             public Tag tag;
             public int tick;
             public string Skey;
@@ -35,6 +36,7 @@ namespace IngameScript
             public Message(Tag kind, string tar, string load, int id, string key, MyTransmitTarget group)
             {
                 tick = 0;
+                round = 0;
                 tag = kind;
                 targetName = tar;
                 payload = load;
@@ -47,12 +49,40 @@ namespace IngameScript
             {
                 return id == ID;
             }
+
+            public string ToString(string ownName = "")
+            {
+                string mes = "COM_" + tag + "_" + targetName;
+                if (tag == Tag.BAD)
+                {
+                    return mes;
+                }
+                mes = mes + "_" + ID;
+                if (tag == Tag.RES)
+                {
+                    return mes;
+                }
+                mes = mes + "_" + ownName;
+                if (Skey != "")
+                {
+                    if (payload != "")
+                    {
+                        mes = mes + "_" + Skey;
+                        mes = mes + "_" + payload;
+                    }
+                }
+                if (payload != "")
+                {
+                    mes = mes + "_" + payload;
+                }
+                return mes;
+            }
         }
 
 
         public class ComModule
         {
-
+            enum Part {COM, KIND, TARGET, ID, SENDER, KEY, MESSAGE };
 
             /*
              *  Accepted Formats 
@@ -70,6 +100,7 @@ namespace IngameScript
             int currentID;
             string ownName;
             int RTT = 15;
+            int RETRY = 3;
 
             bool ComWorking = false;
             Random rnd;
@@ -115,21 +146,29 @@ namespace IngameScript
 
                 if (buffer.Count > pointer)
                 {
-                    string message = BuildMessage(buffer[pointer]);
+                    string message = buffer[pointer].ToString(ownName);
                     if (antenna.TransmitMessage(message, buffer[pointer].targetGroup))
                     {
+                        parent.output.WritePublicText("Message send to " + buffer[pointer].targetName + " with ID " + buffer[pointer].ID + "\n", true);
                         pointer++;
+                        if (buffer[pointer-1].tag != Tag.MES)
+                        {
+                            pointer--;
+                            buffer.RemoveAt(pointer);
+                        }
                     }
                 }
-
+                parent.Echo("Pointer " + pointer + " Buffer " + buffer.Count);
                 for (int i = 0; i < pointer; i++)
                 {
                     if (buffer[i].tick < RTT)
                     {
+                        parent.Echo("Tick at " + buffer[i].tick);
                         buffer[i].tick++;
                     }
                     else
                     {
+                        parent.output.WritePublicText("No Responce for message with ID " + buffer[i].ID + ", retrying \n", true);
                         RepeatMessage(i);
                     }
                 }
@@ -141,26 +180,29 @@ namespace IngameScript
                 string output = "";
                 try
                 {
-                    Tag kindOf = (Tag)Enum.Parse(typeof(Tag), parts[1]);
+                    Tag kindOf = (Tag)Enum.Parse(typeof(Tag), parts[(int) Part.KIND]);
                     switch (kindOf)
                     {
                         case Tag.BAD:
-                            CheckMessage(parts[0]);
+                            CheckMessage(parts[(int) Part.TARGET]);
+                            parent.output.WritePublicText("Recieved message with BAD tag from " + parts[(int) Part.TARGET] + "\n", true);
                             break;
                         case Tag.RES:
                             if (parts[2] == ownName)
                             {
-                                MessageResponce(int.Parse(parts[3]));
+                                MessageResponce(int.Parse(parts[(int) Part.ID]));
+                                parent.output.WritePublicText("Recieved Reponse for message with ID " + parts[(int) Part.ID] + "\n", true);
                             }
                             break;
                         case Tag.MES:
                             if (parts[2] == ownName)
                             {
-                                SendResponce(parts[4], int.Parse(parts[3]));
-                                output = parts[5];
+                                parent.output.WritePublicText("Recieved message from " + parts[(int) Part.SENDER] + "with ID " + parts[(int) Part.ID]+ "\n", true);
+                                SendResponce(parts[(int) Part.SENDER], int.Parse(parts[(int) Part.ID]));
+                                output = parts[(int) Part.KEY];
                                 if (parts.Length > 6)
                                 {
-                                    output = output + "_" + parts[6];
+                                    output = output + "_" + parts[(int) Part.MESSAGE];
                                 }
                             }
                             break;
@@ -180,6 +222,7 @@ namespace IngameScript
                     if (obj.isEqual(ID))
                     {
                         buffer.Remove(obj);
+                        pointer--;
                         break;
                     }
                 }
@@ -200,43 +243,29 @@ namespace IngameScript
             {
                 Message save = buffer[index];
                 save.tick = 0;
+                save.round++;
                 buffer.RemoveAt(index);
+                if (save.round >= RETRY)
+                {
+                    parent.output.WritePublicText("Message droped after " + RETRY + " retries, ID " + save.ID + "\n", true);
+                    return;
+                }
                 buffer.Add(save);
+                pointer--;
             }
 
-            string BuildMessage(Message obj)
-            {
-                string mes = "COM_" + obj.tag + "_" + obj.targetName;
-                if (obj.tag == Tag.BAD)
-                {
-                    return mes;
-                }
-                mes = mes + "_" + obj.ID;
-                if (obj.Skey != "")
-                {
-                    if (obj.payload != "")
-                    {
-                        mes = mes + "_" + obj.Skey;
-                        mes = mes + "_" + obj.payload;
-                    }
-                }
-                if (obj.payload != "")
-                {
-                    mes = mes + "_" + obj.payload;
-                }
-                return mes;
-            }
+            
 
             void SendError()
             {
                 if (ComWorking)
                 {
-                    Message mes = new Message(Tag.BAD, ownName, "", -1, "", MyTransmitTarget.Ally);
+                    Message mes = new Message(Tag.BAD, ownName, "", -1, "", MyTransmitTarget.Ally|MyTransmitTarget.Owned);
 
                 }
             }
 
-            void SendResponce(string target, int ID, MyTransmitTarget group = MyTransmitTarget.Ally)
+            void SendResponce(string target, int ID, MyTransmitTarget group = MyTransmitTarget.Ally|MyTransmitTarget.Owned)
             {
                 if (ComWorking)
                 {
@@ -245,7 +274,7 @@ namespace IngameScript
                 }
             }
 
-            public void SendMessage(string target, string message, string key = "", MyTransmitTarget group = MyTransmitTarget.Ally)
+            public void SendMessage(string target, string message, string key = "", MyTransmitTarget group = MyTransmitTarget.Ally | MyTransmitTarget.Owned)
             {
                 if (ComWorking)
                 {
