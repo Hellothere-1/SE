@@ -70,9 +70,10 @@ namespace IngameScript
             const int MAXACKTIME = 5;
             //List to save all not ACKed Messages
             List<Message> sendBuffer = new List<Message>();
+            int responceTime = 4;
             int pointer = 0;
 
-            //ID which indentifies the last message which has been recieved from this sender
+            //ID which indentifies the last message which has been recieved from the sender
             int lastRecievedID = 0;
 
             //ID which indentifies the last message which has been acknowledged by this reciever
@@ -83,6 +84,12 @@ namespace IngameScript
 
             int ACKcounter = MAXACKTIME;
             int TARcounter = 3 * MAXACKTIME;
+
+            public void deleteMessage(Message mes)
+            {
+                sendBuffer.Remove(mes);
+                pointer--;
+            }
 
             public void addMessage(Message mes)
             {
@@ -133,6 +140,7 @@ namespace IngameScript
                 return -1;
             }
 
+            //This unit is recieving an ACK Signal
             public bool recieveACK(int ID)
             {
                 //Delete all ACKed Messages
@@ -166,13 +174,23 @@ namespace IngameScript
                 return false;
             }
 
-            public bool responcceNeeded()
+            public bool responceNeeded()
             {
                 if (ACKcounter >= 0)
                 {
                     return true;
                 }
                 ACKcounter--;
+                return false;
+            }
+
+            public bool needACK()
+            {
+                responceTime--;
+                if (responceTime <= 0)
+                {
+                    return true;
+                }
                 return false;
             }
 
@@ -185,6 +203,7 @@ namespace IngameScript
                 }
                 return false;
             }
+
         }
 
 
@@ -256,38 +275,23 @@ namespace IngameScript
                 {
                     return;
                 }
-
-                if (buffer.Count <= pointer)
+                Target current = responceList[responceList.Keys.First()];
+                Message mes = current.getMessage();
+                if (antenna.TransmitMessage(mes.ToString(), buffer[pointer].targetGroup))
                 {
-                    pointer = buffer.Count;
-                }
-
-                if (buffer.Count > pointer)
-                {
-                    string message = buffer[pointer].ToString(ownName);
-                    if (antenna.TransmitMessage(message, buffer[pointer].targetGroup))
+                    parent.output.WritePublicText("Message send to " + mes.targetName + " with ID " + mes.ID + "\n", true);
+                    current.increasePointer();
+                    if (mes.tag != Tag.MES)
                     {
-                        parent.output.WritePublicText("Message send to " + buffer[pointer].targetName + " with ID " + buffer[pointer].ID + "\n", true);
-                        pointer++;
-                        if (buffer[pointer-1].tag != Tag.MES)
-                        {
-                            pointer--;
-                            buffer.RemoveAt(pointer);
-                        }
+                        current.deleteMessage(mes);
                     }
                 }
-                parent.Echo("Pointer " + pointer + " Buffer " + buffer.Count);
-                for (int i = 0; i < pointer; i++)
+                foreach (string name in responceList.Keys.ToList())
                 {
-                    if (buffer[i].tick < RTT)
+                    if (responceList[name].activCounter())
                     {
-                        parent.Echo("Tick at " + buffer[i].tick);
-                        buffer[i].tick++;
-                    }
-                    else
-                    {
-                        parent.output.WritePublicText("No Responce for message with ID " + buffer[i].ID + ", retrying \n", true);
-                        RepeatMessage(i);
+                        //Not activ anymore
+                        responceList.Remove(name);
                     }
                 }
             }
@@ -363,7 +367,7 @@ namespace IngameScript
             {
                 if (ComWorking)
                 {
-                    Message mes = new Message(Tag.RES, target, "", ID, "", group);
+                    Message mes = new Message(Tag.RES, target, "",  ID, group);
                     buffer.Add(mes);
                 }
             }
@@ -372,7 +376,7 @@ namespace IngameScript
             {
                 if (ComWorking)
                 {
-                    Message mes = new Message(Tag.MES, target, message, currentID, key, group);
+                    Message mes = new Message(Tag.MES, target, message, currentID, group);
                     buffer.Add(mes);
                     currentID++;
                 }
