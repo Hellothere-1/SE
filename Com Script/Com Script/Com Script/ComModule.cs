@@ -155,12 +155,8 @@ namespace IngameScript
                 return output;
             }
 
-            public void deleteMessage(Message mes)
-            {
-                sendBuffer.Remove(mes);
-                pointer--;
-            }
 
+            //Adds the given message to the sendBuffer
             public void addMessage(Message mes)
             {
                 mes.ID = currentID;
@@ -168,6 +164,7 @@ namespace IngameScript
                 sendBuffer.Add(mes);
             }
 
+            //Gets the first message for this target
             public Message getMessage()
             {
                 if (sendBuffer.Count != 0 && pointer < sendBuffer.Count)
@@ -266,6 +263,12 @@ namespace IngameScript
                 ACKneeded = false;
                 return false;
             }
+
+            //Return the last recieved message ID
+            public int getLastRecieved()
+            {
+                return lastRecievedID;
+            }
         }
 
 
@@ -282,7 +285,6 @@ namespace IngameScript
 
             Program parent;
             IMyRadioAntenna antenna;
-
             Dictionary<string, Target> responceList = new Dictionary<string, Target>();
             
             string ownName;
@@ -338,19 +340,22 @@ namespace IngameScript
                     }
                     if ((stat & Status.SendACK) == stat)
                     {
-                        mes = responceList[name].getMessage();
-                        //ACK needed
+                        //Create new Responce for given ID
+                        mes = new Message(Tag.RES, name, "", responceList[name].getLastRecieved(), MyTransmitTarget.Default);
                     }
                 }
                 if (mes != null && antenna.TransmitMessage(mes.ToString(), mes.targetGroup))
                 {
                     parent.output.WritePublicText("Message send to " + mes.targetName + " with ID " + mes.ID + "\n", true);
-                    current.increasePointer();
-                    if (mes.tag != Tag.MES)
+                    if (mes.tag == Tag.MES)
                     {
-                        current.deleteMessage(mes);
+                        current.increasePointer();
                     }
-                    parent.output.WritePublicText("Message send completed \n", true);
+                    else if (mes.tag == Tag.RES)
+                    {
+                        responceList[mes.targetName].sendACK(mes.ID, false);
+                    }
+                    
                 }
                 
             }
@@ -414,7 +419,7 @@ namespace IngameScript
                 }
             }
 
-            public void SendMessage(string target, string message, string key = "", MyTransmitTarget group = MyTransmitTarget.Ally | MyTransmitTarget.Owned)
+            public void SendMessage(string target, string message, string key = "", MyTransmitTarget group = MyTransmitTarget.Default)
             {
                 if (ComWorking)
                 {
