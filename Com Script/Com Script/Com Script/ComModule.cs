@@ -71,6 +71,7 @@ namespace IngameScript
         class Target
         {
             const int MAXACKTIME = 5;
+            const int MAXROUND = 3;
 
             int currentID;
 
@@ -127,6 +128,22 @@ namespace IngameScript
                 if (responceTime <= 0 && responceNeeded)
                 {
                     output = output | Status.MesNotACK;
+                    for (int i = 0; i < pointer; i++)
+                    {
+                        sendBuffer[i].round++;
+                        if (sendBuffer[i].round < MAXROUND)
+                        {
+                            Message save = sendBuffer[i];
+                            sendBuffer.RemoveAt(i);
+                            pointer--;
+                            sendBuffer.Add(save);
+                        }
+                        else
+                        {
+                            sendBuffer.RemoveAt(i);
+                            pointer--;
+                        }
+                    }
                     pointer = 0;
                 }
                 ACKcounter--;
@@ -146,12 +163,14 @@ namespace IngameScript
 
             public void addMessage(Message mes)
             {
+                mes.ID = currentID;
+                currentID++;
                 sendBuffer.Add(mes);
             }
 
             public Message getMessage()
             {
-                if (sendBuffer.Count != 0)
+                if (sendBuffer.Count != 0 && pointer < sendBuffer.Count)
                 {
                     TARcounter = 3 * MAXACKTIME;
                     return sendBuffer[pointer];
@@ -265,14 +284,12 @@ namespace IngameScript
             IMyRadioAntenna antenna;
 
             Dictionary<string, Target> responceList = new Dictionary<string, Target>();
-
-            int currentID;
+            
             string ownName;
             int RTT = 15;
             int RETRY = 3;
 
             bool ComWorking = false;
-            Random rnd;
 
             public ComModule(Program par, IMyRadioAntenna ant, string name)
             {
@@ -295,8 +312,6 @@ namespace IngameScript
                     parent.Echo("Com System failure");
                     return;
                 }
-                rnd = new Random(antenna.CustomNameWithFaction.GetHashCode());
-                currentID = (int)(rnd.NextDouble() * rnd.Next());
 
             }
 
@@ -304,6 +319,11 @@ namespace IngameScript
             {
                 if (!ComWorking)
                 {
+                    return;
+                }
+                if (responceList.Count == 0)
+                {
+                    parent.Echo("Nothing to do");
                     return;
                 }
                 Target current = responceList[responceList.Keys.First()];
@@ -322,7 +342,7 @@ namespace IngameScript
                         //ACK needed
                     }
                 }
-                if (antenna.TransmitMessage(mes.ToString(), mes.targetGroup))
+                if (mes != null && antenna.TransmitMessage(mes.ToString(), mes.targetGroup))
                 {
                     parent.output.WritePublicText("Message send to " + mes.targetName + " with ID " + mes.ID + "\n", true);
                     current.increasePointer();
@@ -330,6 +350,7 @@ namespace IngameScript
                     {
                         current.deleteMessage(mes);
                     }
+                    parent.output.WritePublicText("Message send completed \n", true);
                 }
                 
             }
@@ -359,7 +380,7 @@ namespace IngameScript
                             if (parts[2] == ownName)
                             {
                                 parent.output.WritePublicText("Recieved message from " + parts[(int)Part.SENDER] + "with ID " + parts[(int)Part.ID] + "\n", true);
-                                if (!responceList.Keys.Contains(parts[(int)Part.SENDER]))
+                                if (responceList.Count == 0 || !responceList.Keys.Contains(parts[(int)Part.SENDER]))
                                 {
                                     responceList.Add(parts[(int)Part.SENDER], new Target(parts[(int) Part.SENDER]));
                                 }
@@ -397,11 +418,11 @@ namespace IngameScript
             {
                 if (ComWorking)
                 {
-                    if (!responceList.Keys.Contains(target))
+                    if (responceList.Count == 0 || !responceList.Keys.Contains(target))
                     {
                         responceList.Add(target, new Target(target));
                     }
-                    Message mes = new Message(Tag.MES, target, message, currentID, group);
+                    Message mes = new Message(Tag.MES, target, message, 0, group);
                     responceList[target].addMessage(mes);
                 }
             }
