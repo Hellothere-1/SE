@@ -72,46 +72,37 @@ namespace IngameScript
         {
             const int MAXACKTIME = 5;
             const int MAXROUND = 3;
-
             int currentID;
 
             //List to save all not ACKed Messages
             List<Message> sendBuffer = new List<Message>();
-
             //Indicates wether a responce is needed right now or not
             bool responceNeeded = false;
-
             //Indicates the time in ticks until responce should be recieved
             int responceTime = MAXACKTIME + (int)(0.2F * (float)MAXACKTIME);
-
             //Indicates the position in the sendBuffer list
             int pointer = 0;
-
             //ID which indentifies the last message which has been recieved from the sender
             int lastRecievedID = 0;
-
             //ID which indentifies the last message which has been acknowledged by this reciever
             int lastACKedID = 0;
-            
             //ID which indentifies the ID which the next message should have
             int awaitedID = 0;
-
             //Indicates whether a own responce is needed 
             bool ACKneeded = false;
-
             //Indicates the time in ticks until a new ACK should be send
             int ACKcounter = MAXACKTIME;
-
             //Indicates the time since last operation happend, if 0 delete this object
             int TARcounter = 3 * MAXACKTIME;
 
+            //Constructor, name not necessary, a long string will do it too
             public Target(string name)
             {
                 Random rnd = new Random(name.GetHashCode());
                 currentID = rnd.Next();
             }
 
-
+            //Return the Status of this target (not finished by now)
             public Status isAlive()
             {
                 Status output = Status.Dead;
@@ -154,8 +145,7 @@ namespace IngameScript
                 }
                 return output;
             }
-
-
+            
             //Adds the given message to the sendBuffer
             public void addMessage(Message mes)
             {
