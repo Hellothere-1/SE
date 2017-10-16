@@ -19,6 +19,9 @@ namespace IngameScript
     partial class Program
     {
         public enum Tag { MES, RES};
+
+        [Flags]
+        public enum Status { Dead = 0, SendACK = 1, Activ = 2, MesNotACK = 4}
         
 
         class Message
@@ -70,7 +73,8 @@ namespace IngameScript
             const int MAXACKTIME = 5;
             //List to save all not ACKed Messages
             List<Message> sendBuffer = new List<Message>();
-            int responceTime = 4;
+            bool responceNeeded = false;
+            int responceTime = MAXACKTIME + (int)(0.2F * (float)MAXACKTIME);
             int pointer = 0;
 
             //ID which indentifies the last message which has been recieved from the sender
@@ -82,8 +86,37 @@ namespace IngameScript
             //ID which indentifies the ID which the next message should have
             int awaitedID = 0;
 
+            bool ACKneeded = false;
             int ACKcounter = MAXACKTIME;
             int TARcounter = 3 * MAXACKTIME;
+            
+
+            public Status isAlive()
+            {
+                Status output = Status.Dead;
+                if (sendBuffer.Count != 0 || responceNeeded)
+                {
+                    output = Status.Activ;
+                }
+                TARcounter--;
+                if (TARcounter <= 0 || ACKneeded)
+                {
+                    output = Status.Activ;
+                }
+                responceTime--;
+                if (responceTime <= 0 && responceNeeded)
+                {
+                    output = output | Status.MesNotACK;
+                    pointer = 0;
+                }
+                ACKcounter--;
+                if (ACKcounter >= 0)
+                {
+                    output = output | Status.SendACK;
+                    ACKneeded = false;
+                }
+                return output;
+            }
 
             public void deleteMessage(Message mes)
             {
@@ -100,22 +133,28 @@ namespace IngameScript
             {
                 if (sendBuffer.Count != 0)
                 {
+                    TARcounter = 3 * MAXACKTIME;
                     return sendBuffer[pointer];
                 }
                 return null;
             }
 
+            //Called when Antenna confirmed send operation
             public void increasePointer()
             {
                 pointer++;
+                responceNeeded = true;
+                responceTime = MAXACKTIME + (int) (0.2F * (float) MAXACKTIME);
             }
 
+            //Called when Controller recieved a Message
             public int checkRecieved(int ID)
             {
                 TARcounter = 3 * MAXACKTIME;
                 if (awaitedID == 0)
                 {
                     //Restart or start of communication, reinit variables
+                    ACKneeded = true;
                     lastRecievedID = ID;
                     awaitedID = ID + 1;
                     ACKcounter = MAXACKTIME;
@@ -124,6 +163,7 @@ namespace IngameScript
                 if (ID == awaitedID)
                 {
                     //Message like awaited, no errors while communication
+                    ACKneeded = true;
                     lastRecievedID = ID;
                     awaitedID++;
                     ACKcounter = MAXACKTIME;
@@ -134,15 +174,18 @@ namespace IngameScript
                     //One or more messages lost, give back last recieved ID when it is not already ACKed
                     if (lastRecievedID != lastACKedID)
                     {
+                        ACKneeded = false;
                         return lastRecievedID;
                     }
                 }
                 return -1;
             }
 
-            //This unit is recieving an ACK Signal
+            //Called when controller recieves an ack/Responce from other participant
             public bool recieveACK(int ID)
             {
+                
+                TARcounter = 3 * MAXACKTIME;
                 //Delete all ACKed Messages
                 foreach (Message mes in sendBuffer)
                 {
@@ -152,10 +195,19 @@ namespace IngameScript
                         pointer--;
                     }
                 }
-                TARcounter = 3 * MAXACKTIME;
+                if (pointer <= 0)
+                {
+                    pointer = 0;
+                }
+                if (sendBuffer.Count == 0 || pointer == 0)
+                {
+                    responceNeeded = false;
+                    return true;
+                }
                 return false;
             }
 
+            //Called when controller sends an ack to other participant
             public bool sendACK(int ID, bool forced)
             {
                 if (ID > lastACKedID)
@@ -168,42 +220,13 @@ namespace IngameScript
                     lastRecievedID = 0;
                     awaitedID = 0;
                     lastACKedID = 0;
+                    ACKneeded = false;
                     return true;
                 }
                 TARcounter = 3 * MAXACKTIME;
+                ACKneeded = false; //Not sure about that...
                 return false;
             }
-
-            public bool responceNeeded()
-            {
-                if (ACKcounter >= 0)
-                {
-                    return true;
-                }
-                ACKcounter--;
-                return false;
-            }
-
-            public bool needACK()
-            {
-                responceTime--;
-                if (responceTime <= 0)
-                {
-                    return true;
-                }
-                return false;
-            }
-
-            public bool activCounter()
-            {
-                TARcounter--;
-                if (TARcounter <= 0 && sendBuffer.Count <= 0)
-                {
-                    return true;
-                }
-                return false;
-            }
-
         }
 
 
@@ -215,7 +238,7 @@ namespace IngameScript
              *  Accepted Formats 
              *  KEY kann weg, idee zur überprüfung für gesichter kommunikation mit einmaliger anmeldung
              *  COM_MES_target_id_sender_message
-             *  COM_RES_target_id
+             *  COM_RES_target_id_sender
              *  
              *  
              *  Idea : Make Dict <target, list<messages>
@@ -228,9 +251,6 @@ namespace IngameScript
 
             Program parent;
             IMyRadioAntenna antenna;
-
-            List<Message> buffer = new List<Message>();
-            int pointer;
 
             Dictionary<string, Target> responceList = new Dictionary<string, Target>();
 
@@ -263,7 +283,6 @@ namespace IngameScript
                     parent.Echo("Com System failure");
                     return;
                 }
-                pointer = 0;
                 rnd = new Random(antenna.CustomNameWithFaction.GetHashCode());
                 currentID = (int)(rnd.NextDouble() * rnd.Next());
 
@@ -277,7 +296,21 @@ namespace IngameScript
                 }
                 Target current = responceList[responceList.Keys.First()];
                 Message mes = current.getMessage();
-                if (antenna.TransmitMessage(mes.ToString(), buffer[pointer].targetGroup))
+                foreach (string name in responceList.Keys.ToList())
+                {
+                    Status stat = responceList[name].isAlive();
+                    if ((stat & Status.Dead) == stat)
+                    {
+                        //Not activ anymore
+                        responceList.Remove(name);
+                    }
+                    if ((stat & Status.SendACK) == stat)
+                    {
+                        mes = responceList[name].getMessage();
+                        //ACK needed
+                    }
+                }
+                if (antenna.TransmitMessage(mes.ToString(), mes.targetGroup))
                 {
                     parent.output.WritePublicText("Message send to " + mes.targetName + " with ID " + mes.ID + "\n", true);
                     current.increasePointer();
@@ -286,14 +319,7 @@ namespace IngameScript
                         current.deleteMessage(mes);
                     }
                 }
-                foreach (string name in responceList.Keys.ToList())
-                {
-                    if (responceList[name].activCounter())
-                    {
-                        //Not activ anymore
-                        responceList.Remove(name);
-                    }
-                }
+                
             }
 
             public string ProcessMessage(string message)
@@ -346,21 +372,6 @@ namespace IngameScript
                 }
                 return output;
             }
-
-            void RepeatMessage(int index)
-            {
-                Message save = buffer[index];
-                save.tick = 0;
-                save.round++;
-                buffer.RemoveAt(index);
-                if (save.round >= RETRY)
-                {
-                    parent.output.WritePublicText("Message droped after " + RETRY + " retries, ID " + save.ID + "\n", true);
-                    return;
-                }
-                buffer.Add(save);
-                pointer--;
-            }
             
 
             void SendResponce(string target, int ID, MyTransmitTarget group = MyTransmitTarget.Ally|MyTransmitTarget.Owned)
@@ -368,7 +379,6 @@ namespace IngameScript
                 if (ComWorking)
                 {
                     Message mes = new Message(Tag.RES, target, "",  ID, group);
-                    buffer.Add(mes);
                 }
             }
 
