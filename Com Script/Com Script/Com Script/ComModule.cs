@@ -71,10 +71,19 @@ namespace IngameScript
         class Target
         {
             const int MAXACKTIME = 5;
+
+            int currentID;
+
             //List to save all not ACKed Messages
             List<Message> sendBuffer = new List<Message>();
+
+            //Indicates wether a responce is needed right now or not
             bool responceNeeded = false;
+
+            //Indicates the time in ticks until responce should be recieved
             int responceTime = MAXACKTIME + (int)(0.2F * (float)MAXACKTIME);
+
+            //Indicates the position in the sendBuffer list
             int pointer = 0;
 
             //ID which indentifies the last message which has been recieved from the sender
@@ -86,10 +95,21 @@ namespace IngameScript
             //ID which indentifies the ID which the next message should have
             int awaitedID = 0;
 
+            //Indicates whether a own responce is needed 
             bool ACKneeded = false;
+
+            //Indicates the time in ticks until a new ACK should be send
             int ACKcounter = MAXACKTIME;
+
+            //Indicates the time since last operation happend, if 0 delete this object
             int TARcounter = 3 * MAXACKTIME;
-            
+
+            public Target(string name)
+            {
+                Random rnd = new Random(name.GetHashCode());
+                currentID = rnd.Next();
+            }
+
 
             public Status isAlive()
             {
@@ -224,7 +244,7 @@ namespace IngameScript
                     return true;
                 }
                 TARcounter = 3 * MAXACKTIME;
-                ACKneeded = false; //Not sure about that...
+                ACKneeded = false;
                 return false;
             }
         }
@@ -239,14 +259,6 @@ namespace IngameScript
              *  KEY kann weg, idee zur überprüfung für gesichter kommunikation mit einmaliger anmeldung
              *  COM_MES_target_id_sender_message
              *  COM_RES_target_id_sender
-             *  
-             *  
-             *  Idea : Make Dict <target, list<messages>
-             *  Sort list after ID 
-             *  Mes with ID_M ack all messages with ID < ID_M
-             *  (Commulative ACKs)
-             *  
-             *  
             */
 
             Program parent;
@@ -349,7 +361,7 @@ namespace IngameScript
                                 parent.output.WritePublicText("Recieved message from " + parts[(int)Part.SENDER] + "with ID " + parts[(int)Part.ID] + "\n", true);
                                 if (!responceList.Keys.Contains(parts[(int)Part.SENDER]))
                                 {
-                                    responceList.Add(parts[(int)Part.SENDER], new Target());
+                                    responceList.Add(parts[(int)Part.SENDER], new Target(parts[(int) Part.SENDER]));
                                 }
                                 int status = responceList[parts[(int)Part.SENDER]].checkRecieved(int.Parse(parts[(int)Part.ID]));
                                 if (status != 0 && status != -1)
@@ -373,7 +385,6 @@ namespace IngameScript
                 return output;
             }
             
-
             void SendResponce(string target, int ID, MyTransmitTarget group = MyTransmitTarget.Ally|MyTransmitTarget.Owned)
             {
                 if (ComWorking)
@@ -386,9 +397,12 @@ namespace IngameScript
             {
                 if (ComWorking)
                 {
+                    if (!responceList.Keys.Contains(target))
+                    {
+                        responceList.Add(target, new Target(target));
+                    }
                     Message mes = new Message(Tag.MES, target, message, currentID, group);
-                    buffer.Add(mes);
-                    currentID++;
+                    responceList[target].addMessage(mes);
                 }
             }
         }
