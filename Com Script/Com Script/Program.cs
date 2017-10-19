@@ -18,21 +18,44 @@ namespace IngameScript
 {
     partial class Program : MyGridProgram
     {
-        string ownName = "";
-        string key = "ZHE67-SAD35-HGDF9";
+        //USER PART, define you custom values here
+        //The name this com script should use, if empty, using grid name
+        string OWN_NAME = "";
+        //Defines if the Antenna should be always on
+        bool ALWAYS_ON = false;
+        //Defines the antenna broadcasting range (0 - 50000)
+        int RANGE = 50000;
+        //Set custom antenna name which should be searched
+        string ANTENNA_NAME = "RC_Antenna";
+        //Set custom output name which should be searched
+        string OUTPUT_NAME = "RC_Out";
+        //END OF USER PART, do not change anything under this line !!
+
+
         ComModule comHandler;
         IMyTerminalBlock output;
         IMyRadioAntenna antenna;
         bool outputIsTextPanel;
         bool isWorking = true;
+        //IDEE textpanel benutzen um mögliche kandidaten für nachrichten auszuwählen, dann achricht tippen und dann mit enter senden
+        //Eventuell sogar chatverlauf etc (Dafür rückmeldung von Sendecode nötig...)
 
         public Program()
         {
-            antenna = GridTerminalSystem.GetBlockWithName("RC_Antenna") as IMyRadioAntenna;
+            antenna = GridTerminalSystem.GetBlockWithName(ANTENNA_NAME) as IMyRadioAntenna;
             if(antenna != null)
             {
                 //TODO assign antenna to pb in script (even possible?)
                 isWorking = true;
+                antenna.SetValueFloat("Radius", RANGE);
+                if (ALWAYS_ON)
+                {
+                    antenna.SetValueBool("Broadcasting", true);
+                }
+                else
+                {
+                    antenna.SetValueBool("Broadcasting", false);
+                }
             }
             else
             {
@@ -41,7 +64,6 @@ namespace IngameScript
                 return;
             }
             output = GridTerminalSystem.GetBlockWithName("RC_Out");
-
             try
             {
                 IMyTextPanel textPanel = output as IMyTextPanel;
@@ -52,39 +74,13 @@ namespace IngameScript
             {
                 outputIsTextPanel = false;
             }
-
-            if (key == "")
+            if (OWN_NAME == "")
             {
-                generateKey();
+                OWN_NAME = Me.CubeGrid.CustomName;
             }
-
-            if (ownName == "")
-            {
-                ownName = Me.CubeGrid.CustomName;
-            }
-            comHandler = new ComModule(this, antenna, ownName);
-            Me.CustomName = "PB_COM _" + ownName;
+            comHandler = new ComModule(this, antenna, OWN_NAME);
+            Me.CustomName = "PB_COM _" + OWN_NAME;
         }
-
-
-        void generateKey()
-        {
-            Random rnd = new Random(Me.CubeGrid.CustomName.GetHashCode());
-            for (int i = 1; i < 16; i++)
-            {
-                char nextLetter = (char) (rnd.Next(0, 35) + 48);
-                if (nextLetter > 57)
-                {
-                    nextLetter += (char) 7;
-                }
-                key = key + nextLetter;
-                if (i % 5 == 0 && i < 12)
-                {
-                    key = key + "_";
-                }
-            }
-        }
-
 
         public void Main(string argument)
         {
@@ -113,6 +109,10 @@ namespace IngameScript
             {
                 string[] parts = argument.Split('_');
                 comHandler.SendMessage(parts[1], parts[2]);
+            }
+            if (argument == "HEY")
+            {
+                //Send Hey message through network
             }
             comHandler.Run();
         }
