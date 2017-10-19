@@ -18,7 +18,7 @@ namespace IngameScript
 {
     partial class Program
     {
-        public enum Tag { MES, RES};
+        public enum Tag { MES, RES, HEY};
 
         [Flags]
         public enum Status { Dead = 0, SendACK = 1, Activ = 2, MesNotACK = 4}
@@ -53,6 +53,10 @@ namespace IngameScript
             public string ToString(string ownName = "")
             {
                 string mes = "COM_" + tag + "_" + targetName;
+                if (tag == Tag.HEY)
+                {
+                    return mes;
+                }
                 mes = mes + "_" + ID;
                 if (tag == Tag.RES)
                 {
@@ -267,18 +271,20 @@ namespace IngameScript
             enum Part { COM, KIND, TARGET, ID, SENDER, MESSAGE };
 
             /*
-             *  Accepted Formats 
-             *  KEY kann weg, idee zur überprüfung für gesichter kommunikation mit einmaliger anmeldung
+             *  Accepted Formats
+             *  
              *  COM_MES_target_id_sender_message
              *  COM_RES_target_id_sender
+             *  COM_HEY_sender
             */
 
             Program parent;
             IMyRadioAntenna antenna;
             Dictionary<string, Target> responceList = new Dictionary<string, Target>();
+            Dictionary<string, int> knownContacts = new Dictionary<string, int>();
             List<Message> prioList = new List<Message>();
             string ownName;
-
+            int timeToContactLoss = 10;
             bool ComWorking = false;
 
             public ComModule(Program par, IMyRadioAntenna ant, string name)
@@ -316,17 +322,18 @@ namespace IngameScript
                     parent.Echo("Nothing to do");
                     return;
                 }
+                bool priolist = false;
                 Target current = responceList[responceList.Keys.First()];
                 Message mes = current.getMessage();
                 foreach (string name in responceList.Keys.ToList())
                 {
                     Status stat = responceList[name].isAlive();
-                    if ((stat & Status.Dead) == stat)
+                    if ((stat & Status.Dead) == Status.Dead)
                     {
                         //Not activ anymore
                         responceList.Remove(name);
                     }
-                    if ((stat & Status.SendACK) == stat)
+                    if ((stat & Status.SendACK) == Status.SendACK)
                     {
                         //Create new Responce for given ID
                         Message resp = new Message(Tag.RES, name, "", responceList[name].getLastRecieved(), MyTransmitTarget.Default);
@@ -337,15 +344,16 @@ namespace IngameScript
                 {
                     mes = prioList[0];
                     prioList.RemoveAt(0);
+                    priolist = true;
                 }
                 if (mes != null && antenna.TransmitMessage(mes.ToString(), mes.targetGroup))
                 {
                     parent.output.WritePublicText("Message send to " + mes.targetName + " with ID " + mes.ID + "\n", true);
-                    if (mes.tag == Tag.MES)
+                    if (mes.tag == Tag.MES && !priolist)
                     {
                         current.increasePointer();
                     }
-                    else if (mes.tag == Tag.RES)
+                    else if (mes.tag == Tag.RES && priolist)
                     {
                         responceList[mes.targetName].sendACK(mes.ID, false);
                     }
@@ -366,6 +374,7 @@ namespace IngameScript
                         case Tag.RES:
                             if (parts[(int) Part.TARGET] == ownName || responceList.Keys.Contains(parts[(int) Part.SENDER]))
                             {
+                                //TODO Remodel output
                                 parent.output.WritePublicText("Recieved Reponse for message(s) with ID " + parts[(int)Part.ID] + "\n", true);
                                 if (responceList[parts[(int)Part.SENDER]].recieveACK(int.Parse(parts[(int)Part.ID])))
                                 {
@@ -396,6 +405,13 @@ namespace IngameScript
                                 }
                             }
                             break;
+                        case Tag.HEY:
+                            if (!knownContacts.Keys.Contains(parts[2]))
+                            {
+                                knownContacts.Add(parts[2], 0);
+                            }
+                            knownContacts[parts[2]] = 0;
+                            break;
                     }
                 }
                 catch (Exception)
@@ -424,6 +440,27 @@ namespace IngameScript
                     }
                     Message mes = new Message(Tag.MES, target, message, 0, group);
                     responceList[target].addMessage(mes);
+                }
+            }
+
+            public void SendHey()
+            {
+                if (ComWorking)
+                {
+                    Message mes = new Message(Tag.HEY, ownName, "", 0, MyTransmitTarget.Default);
+                    prioList.Add(mes);
+                    foreach (string name in knownContacts.Keys.ToList())
+                    {
+                        if (knownContacts[name] > timeToContactLoss)
+                        {
+                            knownContacts.Remove(name);
+                        }
+                        else
+                        {
+                            knownContacts[name]++;
+                        }
+                    }
+
                 }
             }
         }
