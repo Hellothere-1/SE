@@ -21,7 +21,7 @@ namespace IngameScript
         public enum Tag { MES, RES, HEY};
 
         [Flags]
-        public enum Status { Dead = 0, SendACK = 1, Activ = 2, MesNotACK = 4}
+        public enum Status {SendACK = 1, Activ = 2, MesNotACK = 4, Dead = 8 }
         
 
         class Message
@@ -58,11 +58,11 @@ namespace IngameScript
                     return mes;
                 }
                 mes = mes + "_" + ID;
+                mes = mes + "_" + ownName;
                 if (tag == Tag.RES)
                 {
                     return mes;
                 }
-                mes = mes + "_" + ownName;
                 if (payload != "")
                 {
                     mes = mes + "_" + payload;
@@ -142,7 +142,7 @@ namespace IngameScript
                     pointer = 0;
                 }
                 ACKcounter--;
-                if (ACKcounter >= 0)
+                if (ACKcounter <= 0 && ACKneeded)
                 {
                     output = output | Status.SendACK;
                     ACKneeded = false;
@@ -175,6 +175,7 @@ namespace IngameScript
                 pointer++;
                 responceNeeded = true;
                 responceTime = MAXACKTIME + (int) (0.2F * (float) MAXACKTIME);
+                TARcounter = 3 * MAXACKTIME;
             }
 
             //Called when Controller recieved a Message
@@ -217,7 +218,7 @@ namespace IngameScript
                 
                 TARcounter = 3 * MAXACKTIME;
                 //Delete all ACKed Messages
-                foreach (Message mes in sendBuffer)
+                foreach (Message mes in sendBuffer.ToList())
                 {
                     if (mes.ID <= ID)
                     {
@@ -278,7 +279,7 @@ namespace IngameScript
              *  COM_HEY_sender
             */
 
-            Program parent;
+            public Program parent;
             IMyRadioAntenna antenna;
             Dictionary<string, Target> responceList = new Dictionary<string, Target>();
             Dictionary<string, int> knownContacts = new Dictionary<string, int>();
@@ -317,24 +318,33 @@ namespace IngameScript
                 {
                     return;
                 }
-                if (responceList.Count == 0)
+                if (responceList.Count == 0 && prioList.Count == 0)
                 {
                     parent.Echo("Nothing to do");
                     return;
                 }
                 bool priolist = false;
-                Target current = responceList[responceList.Keys.First()];
-                Message mes = current.getMessage();
+                Target current = null;
+                Message mes = null;
+                if (responceList.Keys.Count != 0)
+                {
+                    current = responceList[responceList.Keys.First()];
+                    mes = current.getMessage();
+                }
+
                 foreach (string name in responceList.Keys.ToList())
                 {
+                    
                     Status stat = responceList[name].isAlive();
                     if ((stat & Status.Dead) == Status.Dead)
                     {
                         //Not activ anymore
                         responceList.Remove(name);
+                        parent.output.WritePublicText("Removed due to inactivity of target" + "\n", true);
                     }
                     if ((stat & Status.SendACK) == Status.SendACK)
                     {
+                        parent.output.WritePublicText("Created responce" + "\n", true);
                         //Create new Responce for given ID
                         Message resp = new Message(Tag.RES, name, "", responceList[name].getLastRecieved(), MyTransmitTarget.Default);
                         prioList.Add(resp);
@@ -346,9 +356,10 @@ namespace IngameScript
                     prioList.RemoveAt(0);
                     priolist = true;
                 }
-                if (mes != null && antenna.TransmitMessage(mes.ToString(), mes.targetGroup))
+                if (mes != null && antenna.TransmitMessage(mes.ToString(ownName), mes.targetGroup))
                 {
                     parent.output.WritePublicText("Message send to " + mes.targetName + " with ID " + mes.ID + "\n", true);
+                    parent.output.WritePublicText("Message was : " + mes.ToString(ownName) + "\n", true);
                     if (mes.tag == Tag.MES && !priolist)
                     {
                         current.increasePointer();
@@ -380,8 +391,9 @@ namespace IngameScript
                                 {
                                     //End of communication reached
                                     responceList.Remove(parts[(int)Part.SENDER]);
-                                    parent.output.WritePublicText("Communication with " + parts[(int)Part.SENDER] + " completed, all Data transmitted\n");
+                                    parent.output.WritePublicText("Communication with " + parts[(int)Part.SENDER] + " completed, all Data transmitted\n", true);
                                 }
+
                             }
                             break;
                         case Tag.MES:
@@ -408,6 +420,7 @@ namespace IngameScript
                         case Tag.HEY:
                             if (!knownContacts.Keys.Contains(parts[2]))
                             {
+                                parent.output.WritePublicText("Recieved HEY from " + parts[2] + "\n", true);
                                 knownContacts.Add(parts[2], 0);
                             }
                             knownContacts[parts[2]] = 0;
@@ -438,7 +451,7 @@ namespace IngameScript
                     {
                         responceList.Add(target, new Target(target));
                     }
-                    Message mes = new Message(Tag.MES, target, message, 0, group);
+                    Message mes = new Message(Tag.MES, target, message, 56, group);
                     responceList[target].addMessage(mes);
                 }
             }

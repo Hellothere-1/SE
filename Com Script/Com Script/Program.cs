@@ -61,18 +61,20 @@ namespace IngameScript
                 string input = comHandler.ProcessMessage(argument);
                 if (!isSender)
                 {
-                    string inputkey = input.Split('_')[0];
-                    if (inputkey == key)
-                    {
-                        myBeacon.CustomName = input.Split('_')[1];
-                    }
+                    myBeacon.CustomName = input;
                 }
             }
             if (argument.StartsWith("Send"))
             {
-                comHandler.SendMessage("Reciever", "SET ANTENNA ON", key);
+                comHandler.SendMessage("Reciever", "SET ANTENNA ON");
+                comHandler.SendMessage("Reciever", "SET BEACON ON");
+                comHandler.SendMessage("Reciever", "LET THE BEACON ALONE");
+            }
+            if (argument == "HEY")
+            {
+                comHandler.SendHey();
             }
             comHandler.Run();
         }
     }
-}
+}   
