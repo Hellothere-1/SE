@@ -18,59 +18,101 @@ namespace IngameScript
 {
     partial class Program : MyGridProgram
     {
+        string ownName = "";
         string key = "ZHE67-SAD35-HGDF9";
         ComModule comHandler;
-        bool isSender = false;
-        IMyBeacon myBeacon;
-        IMyTextPanel output;
-
+        IMyTerminalBlock output;
+        IMyRadioAntenna antenna;
+        bool outputIsTextPanel;
+        bool isWorking = true;
 
         public Program()
         {
-            List<IMyTerminalBlock> temp = new List<IMyTerminalBlock>();
-            GridTerminalSystem.GetBlocksOfType<IMyRadioAntenna>(temp);
-            IMyRadioAntenna antenna = temp[0] as IMyRadioAntenna;
-            GridTerminalSystem.GetBlocksOfType<IMyTextPanel>(temp);
-            output = temp[0] as IMyTextPanel;
-            output.WritePublicText("");
-            //TODO assign antenna to pb in script (even possible?)s
-            if (Me.CustomName.Contains("Send"))
+            antenna = GridTerminalSystem.GetBlockWithName("RC_Antenna") as IMyRadioAntenna;
+            if(antenna != null)
             {
-                isSender = true;
-                comHandler = new ComModule(this, antenna, "Sender");
-                Me.CustomName = "PB_Sender";
+                //TODO assign antenna to pb in script (even possible?)
+                isWorking = true;
             }
             else
             {
-                GridTerminalSystem.GetBlocksOfType<IMyBeacon>(temp);
-                myBeacon = temp[0] as IMyBeacon;
-                comHandler = new ComModule(this, antenna, "Reciever");
-                Me.CustomName = "PB_Reciever";
+                Echo("Antenna could not be found");
+                isWorking = false;
+                return;
+            }
+            output = GridTerminalSystem.GetBlockWithName("RC_Out");
+
+            try
+            {
+                IMyTextPanel textPanel = output as IMyTextPanel;
+                textPanel.WritePublicText("");
+                outputIsTextPanel = true;
+            }
+            catch (Exception)
+            {
+                outputIsTextPanel = false;
+            }
+
+            if (key == "")
+            {
+                generateKey();
+            }
+
+            if (ownName == "")
+            {
+                ownName = Me.CubeGrid.CustomName;
+            }
+            comHandler = new ComModule(this, antenna, ownName);
+            Me.CustomName = "PB_COM _" + ownName;
+        }
+
+
+        void generateKey()
+        {
+            Random rnd = new Random(Me.CubeGrid.CustomName.GetHashCode());
+            for (int i = 1; i < 16; i++)
+            {
+                char nextLetter = (char) (rnd.Next(0, 35) + 48);
+                if (nextLetter > 57)
+                {
+                    nextLetter += (char) 7;
+                }
+                key = key + nextLetter;
+                if (i % 5 == 0 && i < 12)
+                {
+                    key = key + "_";
+                }
             }
         }
 
 
         public void Main(string argument)
         {
-            if (argument != "")
+            if (!isWorking)
             {
-                output.WritePublicText("Input: " + argument + "\n", true);
+                return;
             }
             if (argument.StartsWith("COM"))
             {
                 string input = comHandler.ProcessMessage(argument);
-                if (!isSender)
+                if (output == null)
                 {
-                    string inputkey = input.Split('_')[0];
-                    if (inputkey == key)
-                    {
-                        myBeacon.CustomName = input.Split('_')[1];
-                    }
+                    Me.CustomData = Me.CustomData + input + "\n";
+                }
+                else if (outputIsTextPanel)
+                {
+                    IMyTextPanel panel = output as IMyTextPanel;
+                    panel.WritePublicText(input + "\n", true);
+                }
+                else
+                {
+                    output.CustomData = output.CustomData + input + "\n";
                 }
             }
             if (argument.StartsWith("Send"))
             {
-                comHandler.SendMessage("Reciever", "SET ANTENNA ON", key);
+                string[] parts = argument.Split('_');
+                comHandler.SendMessage(parts[1], parts[2]);
             }
             comHandler.Run();
         }
