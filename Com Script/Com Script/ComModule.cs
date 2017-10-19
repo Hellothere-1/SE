@@ -276,10 +276,8 @@ namespace IngameScript
             Program parent;
             IMyRadioAntenna antenna;
             Dictionary<string, Target> responceList = new Dictionary<string, Target>();
-            
+            List<Message> prioList = new List<Message>();
             string ownName;
-            int RTT = 15;
-            int RETRY = 3;
 
             bool ComWorking = false;
 
@@ -331,8 +329,14 @@ namespace IngameScript
                     if ((stat & Status.SendACK) == stat)
                     {
                         //Create new Responce for given ID
-                        mes = new Message(Tag.RES, name, "", responceList[name].getLastRecieved(), MyTransmitTarget.Default);
+                        Message resp = new Message(Tag.RES, name, "", responceList[name].getLastRecieved(), MyTransmitTarget.Default);
+                        prioList.Add(resp);
                     }
+                }
+                if (prioList.Count != 0)
+                {
+                    mes = prioList[0];
+                    prioList.RemoveAt(0);
                 }
                 if (mes != null && antenna.TransmitMessage(mes.ToString(), mes.targetGroup))
                 {
@@ -406,6 +410,7 @@ namespace IngameScript
                 if (ComWorking)
                 {
                     Message mes = new Message(Tag.RES, target, "",  ID, group);
+                    prioList.Add(mes);
                 }
             }
 
