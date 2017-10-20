@@ -49,7 +49,7 @@ namespace IngameScript
                 return id == ID;
             }
 
-            public string ToString(string ownName = "")
+            public string ToString(string ownName)
             {
                 string mes = "COM_" + tag + "_" + targetName;
                 if (tag == Tag.HEY)
@@ -338,11 +338,10 @@ namespace IngameScript
                     {
                         //Not activ anymore
                         responceList.Remove(name);
-                        parent.output.WritePublicText("Removed due to inactivity of target" + "\n", true);
+                        parent.printOut("Removed due to inactivity of target " + name);
                     }
                     if ((stat & Status.SendACK) == Status.SendACK)
                     {
-                        parent.output.WritePublicText("Created responce" + "\n", true);
                         //Create new Responce for given ID
                         Message resp = new Message(Tag.RES, name, "", responceList[name].getLastRecieved(), MyTransmitTarget.Default);
                         prioList.Add(resp);
@@ -356,8 +355,8 @@ namespace IngameScript
                 }
                 if (mes != null && antenna.TransmitMessage(mes.ToString(ownName), mes.targetGroup))
                 {
-                    parent.output.WritePublicText("Message send to " + mes.targetName + " with ID " + mes.ID + "\n", true);
-                    parent.output.WritePublicText("Message was : " + mes.ToString(ownName) + "\n", true);
+                    parent.printOut("Message send to " + mes.targetName + " with ID " + mes.ID);
+                    parent.printOut("Message was : " + mes.ToString(ownName));
                     if (mes.tag == Tag.MES && !priolist)
                     {
                         current.increasePointer();
@@ -382,19 +381,18 @@ namespace IngameScript
                         case Tag.RES:
                             if (parts[(int) Part.TARGET] == ownName || responceList.Keys.Contains(parts[(int) Part.SENDER]))
                             {
-                                //TODO Remodel output
-                                parent.output.WritePublicText("Recieved Reponse for message(s) with ID " + parts[(int)Part.ID] + "\n", true);
+                                parent.printOut("Recieved Reponse for message(s) with ID " + parts[(int)Part.ID]);
                                 if (responceList[parts[(int)Part.SENDER]].recieveACK(int.Parse(parts[(int)Part.ID])))
                                 {
                                     //End of communication reached, but remove will be called by stat = DEAD
-                                    parent.output.WritePublicText("Communication with " + parts[(int)Part.SENDER] + " completed, all Data transmitted\n", true);
+                                    parent.printOut("Communication with " + parts[(int)Part.SENDER] + " completed, all Data transmitted");
                                 }
                             }
                             break;
                         case Tag.MES:
                             if (parts[2] == ownName)
                             {
-                                parent.output.WritePublicText("Recieved message from " + parts[(int)Part.SENDER] + "with ID " + parts[(int)Part.ID] + "\n", true);
+                                parent.printOut("Recieved message from " + parts[(int)Part.SENDER] + "with ID " + parts[(int)Part.ID]);
                                 if (responceList.Count == 0 || !responceList.Keys.Contains(parts[(int)Part.SENDER]))
                                 {
                                     responceList.Add(parts[(int)Part.SENDER], new Target(parts[(int) Part.SENDER]));
@@ -415,7 +413,6 @@ namespace IngameScript
                         case Tag.HEY:
                             if (!knownContacts.Keys.Contains(parts[2]))
                             {
-                                parent.output.WritePublicText("Recieved HEY from " + parts[2] + "\n", true);
                                 knownContacts.Add(parts[2], 0);
                             }
                             knownContacts[parts[2]] = 0;
@@ -425,7 +422,7 @@ namespace IngameScript
                 catch (Exception)
                 {
 
-                    parent.output.WritePublicText("Bad command recieved: " + message + "\n", true);
+                    parent.printOut("Bad command recieved: " + message);
                 }
                 return output;
             }

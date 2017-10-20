@@ -92,19 +92,7 @@ namespace IngameScript
             if (argument.StartsWith("COM"))
             {
                 string input = comHandler.ProcessMessage(argument);
-                if (output == null)
-                {
-                    Me.CustomData = Me.CustomData + input + "\n";
-                }
-                else if (outputIsTextPanel)
-                {
-                    IMyTextPanel panel = output as IMyTextPanel;
-                    panel.WritePublicText(input + "\n", true);
-                }
-                else
-                {
-                    output.CustomData = output.CustomData + input + "\n";
-                }
+                printOut(input);
             }
             if (argument.StartsWith("Send"))
             {
@@ -116,6 +104,24 @@ namespace IngameScript
                 comHandler.SendHey();
             }
             comHandler.Run();
+        }
+
+
+        public void printOut(string mes)
+        {
+            if (output == null)
+            {
+                Me.CustomData = Me.CustomData + mes + "\n";
+            }
+            else if (outputIsTextPanel)
+            {
+                IMyTextPanel panel = output as IMyTextPanel;
+                panel.WritePublicText(mes + "\n", true);
+            }
+            else
+            {
+                output.CustomData = output.CustomData + mes + "\n";
+            }
         }
     }
 }
