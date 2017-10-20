@@ -29,6 +29,8 @@ namespace IngameScript
         string ANTENNA_NAME = "RC_Antenna";
         //Set custom output name which should be searched
         string OUTPUT_NAME = "RC_Out";
+        //Set handling of antenna (0 = all, 1 = own and ally, 2 = own), deafult 1
+        short ACCEPT_MESSAGE = 1;
         //END OF USER PART, do not change anything under this line !!
 
 
@@ -48,6 +50,25 @@ namespace IngameScript
                 //TODO assign antenna to pb in script (even possible?)
                 isWorking = true;
                 antenna.SetValueFloat("Radius", RANGE);
+                switch (ACCEPT_MESSAGE)
+                {
+                    case 0:
+                        antenna.IgnoreOtherBroadcast = false;
+                        antenna.IgnoreAlliedBroadcast = false;
+                        break;
+                    case 1:
+                        antenna.IgnoreOtherBroadcast = true;
+                        antenna.IgnoreAlliedBroadcast = false;
+                        break;
+                    case 2:
+                        antenna.IgnoreOtherBroadcast = true;
+                        antenna.IgnoreAlliedBroadcast = true;
+                        break;
+                    default:
+                        antenna.IgnoreOtherBroadcast = true;
+                        antenna.IgnoreAlliedBroadcast = false;
+                        break;
+                }
                 if (ALWAYS_ON)
                 {
                     antenna.SetValueBool("Broadcasting", true);
@@ -78,6 +99,7 @@ namespace IngameScript
             {
                 OWN_NAME = Me.CubeGrid.CustomName;
             }
+            OWN_NAME = OWN_NAME + "/" + Me.EntityId % 10000;
             comHandler = new ComModule(this, antenna, OWN_NAME);
             Me.CustomName = "PB_COM _" + OWN_NAME;
         }
