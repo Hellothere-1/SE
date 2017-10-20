@@ -18,9 +18,11 @@ namespace IngameScript
 {
     partial class Program
     {
-        public enum Tag { MES, RES, BAD };
+        public enum Tag { MES, RES, HEY};
 
-
+        [Flags]
+        public enum Status {SendACK = 1, Activ = 2, MesNotACK = 4, Dead = 8 }
+        
 
         class Message
         {
@@ -28,12 +30,10 @@ namespace IngameScript
             public int round;
             public Tag tag;
             public int tick;
-            public string Skey;
             public string payload;
             public string targetName;
             public MyTransmitTarget targetGroup;
-
-            public Message(Tag kind, string tar, string load, int id, string key, MyTransmitTarget group)
+            public Message(Tag kind, string tar, string load, int id, MyTransmitTarget group)
             {
                 tick = 0;
                 round = 0;
@@ -41,7 +41,6 @@ namespace IngameScript
                 targetName = tar;
                 payload = load;
                 ID = id;
-                Skey = key;
                 targetGroup = group;
             }
 
@@ -53,23 +52,15 @@ namespace IngameScript
             public string ToString(string ownName = "")
             {
                 string mes = "COM_" + tag + "_" + targetName;
-                if (tag == Tag.BAD)
+                if (tag == Tag.HEY)
                 {
                     return mes;
                 }
                 mes = mes + "_" + ID;
+                mes = mes + "_" + ownName;
                 if (tag == Tag.RES)
                 {
                     return mes;
-                }
-                mes = mes + "_" + ownName;
-                if (Skey != "")
-                {
-                    if (payload != "")
-                    {
-                        mes = mes + "_" + Skey;
-                        mes = mes + "_" + payload;
-                    }
                 }
                 if (payload != "")
                 {
@@ -80,38 +71,222 @@ namespace IngameScript
         }
 
 
+        class Target
+        {
+            const int MAXACKTIME = 5;
+            const int MAXROUND = 3;
+            int currentID;
+
+            //List to save all not ACKed Messages
+            List<Message> sendBuffer = new List<Message>();
+            //Indicates wether a responce is needed right now or not
+            bool responceNeeded = false;
+            //Indicates the time in ticks until responce should be recieved
+            int responceTime = MAXACKTIME + (int)(0.2F * (float)MAXACKTIME);
+            //Indicates the position in the sendBuffer list
+            int pointer = 0;
+            //ID which indentifies the last message which has been recieved from the sender
+            int lastRecievedID = 0;
+            //ID which indentifies the last message which has been acknowledged by this reciever
+            int lastACKedID = 0;
+            //ID which indentifies the ID which the next message should have
+            int awaitedID = 0;
+            //Indicates whether a own responce is needed 
+            bool ACKneeded = false;
+            //Indicates the time in ticks until a new ACK should be send
+            int ACKcounter = MAXACKTIME;
+            //Indicates the time since last operation happend, if 0 delete this object
+            int TARcounter = 3 * MAXACKTIME;
+
+            //Constructor, name not necessary, a long string will do it too
+            public Target(string name)
+            {
+                Random rnd = new Random(name.GetHashCode());
+                currentID = rnd.Next();
+            }
+
+            //Return the Status of this target (not finished by now)
+            public Status isAlive()
+            {
+                Status output = Status.Dead;
+                if (sendBuffer.Count != 0 || responceNeeded)
+                {
+                    output = Status.Activ;
+                }
+                TARcounter--;
+                if (TARcounter <= 0 || ACKneeded)
+                {
+                    output = Status.Activ;
+                }
+                responceTime--;
+                if (responceTime <= 0 && responceNeeded)
+                {
+                    output = output | Status.MesNotACK;
+                    for (int i = 0; i < pointer; i++)
+                    {
+                        sendBuffer[i].round++;
+                        if (sendBuffer[i].round < MAXROUND)
+                        {
+                            Message save = sendBuffer[i];
+                            sendBuffer.RemoveAt(i);
+                            pointer--;
+                            sendBuffer.Add(save);
+                        }
+                        else
+                        {
+                            //TODO Return ID of not sended Messages
+                            sendBuffer.RemoveAt(i);
+                            pointer--;
+                        }
+                    }
+                    pointer = 0;
+                }
+                ACKcounter--;
+                if (ACKcounter <= 0 && ACKneeded)
+                {
+                    output = output | Status.SendACK;
+                    ACKneeded = false;
+                }
+                return output;
+            }
+            
+            //Adds the given message to the sendBuffer
+            public void addMessage(Message mes)
+            {
+                mes.ID = currentID;
+                currentID++;
+                sendBuffer.Add(mes);
+            }
+
+            //Gets the first message for this target
+            public Message getMessage()
+            {
+                if (sendBuffer.Count != 0 && pointer < sendBuffer.Count)
+                {
+                    TARcounter = 3 * MAXACKTIME;
+                    return sendBuffer[pointer];
+                }
+                return null;
+            }
+
+            //Called when Antenna confirmed send operation
+            public void increasePointer()
+            {
+                pointer++;
+                responceNeeded = true;
+                responceTime = MAXACKTIME + (int) (0.2F * (float) MAXACKTIME);
+                TARcounter = 3 * MAXACKTIME;
+            }
+
+            //Called when Controller recieved a Message
+            public int checkRecieved(int ID)
+            {
+                TARcounter = 3 * MAXACKTIME;
+                if (awaitedID == 0)
+                {
+                    //Restart or start of communication, reinit variables
+                    ACKneeded = true;
+                    lastRecievedID = ID;
+                    awaitedID = ID + 1;
+                    ACKcounter = MAXACKTIME;
+                    return 0;
+                }
+                if (ID == awaitedID)
+                {
+                    //Message like awaited, no errors while communication
+                    ACKneeded = true;
+                    lastRecievedID = ID;
+                    awaitedID++;
+                    ACKcounter = MAXACKTIME;
+                    return 0;
+                }
+                if (ID > awaitedID)
+                {
+                    //One or more messages lost, give back last recieved ID when it is not already ACKed
+                    if (lastRecievedID != lastACKedID)
+                    {
+                        ACKneeded = false;
+                        return lastRecievedID;
+                    }
+                }
+                return -1;
+            }
+
+            //Called when controller recieves an ack/Responce from other participant
+            public bool recieveACK(int ID)
+            {
+                
+                TARcounter = 3 * MAXACKTIME;
+                //Delete all ACKed Messages
+                foreach (Message mes in sendBuffer.ToList())
+                {
+                    if (mes.ID <= ID)
+                    {
+                        sendBuffer.Remove(mes);
+                        pointer--;
+                    }
+                }
+                if (pointer <= 0)
+                {
+                    pointer = 0;
+                }
+                if (sendBuffer.Count == 0 || pointer == 0)
+                {
+                    responceNeeded = false;
+                    return true;
+                }
+                return false;
+            }
+
+            //Called when controller sends an ack to other participant
+            public bool sendACK(int ID, bool forced)
+            {
+                if (ID > lastACKedID)
+                {
+                    lastACKedID = ID;
+                }
+                if (!forced && lastACKedID == lastRecievedID)
+                {
+                    //Communication endet successful, reseting variables
+                    lastRecievedID = 0;
+                    awaitedID = 0;
+                    lastACKedID = 0;
+                    ACKneeded = false;
+                    return true;
+                }
+                TARcounter = 3 * MAXACKTIME;
+                ACKneeded = false;
+                return false;
+            }
+
+            //Return the last recieved message ID
+            public int getLastRecieved()
+            {
+                return lastRecievedID;
+            }
+        }
+
+
         public class ComModule
         {
-            enum Part {COM, KIND, TARGET, ID, SENDER, KEY, MESSAGE };
+            enum Part { COM, KIND, TARGET, ID, SENDER, MESSAGE };
 
             /*
-             *  Accepted Formats 
-             *  COM_MES_target_id_sender_key_message
+             *  Accepted Formats
+             *  
              *  COM_MES_target_id_sender_message
-             *  COM_RES_target_id
-             *  COM_BAD_target
-             *  
-             *  
-             *  Idea : Make Dict <target, list<messages>
-             *  Sort list after ID 
-             *  Mes with ID_M ack all messages with ID < ID_M
-             *  (Commulative ACKs)
-             *  
-             *  
+             *  COM_RES_target_id_sender
+             *  COM_HEY_sender
             */
 
-            Program parent;
+            public Program parent;
             IMyRadioAntenna antenna;
-
-            List<Message> buffer = new List<Message>();
-            int pointer;
-            int currentID;
+            Dictionary<string, Target> responceList = new Dictionary<string, Target>();
+            Dictionary<string, int> knownContacts = new Dictionary<string, int>();
+            List<Message> prioList = new List<Message>();
             string ownName;
-            int RTT = 15;
-            int RETRY = 3;
-
+            int timeToContactLoss = 10;
             bool ComWorking = false;
-            Random rnd;
 
             public ComModule(Program par, IMyRadioAntenna ant, string name)
             {
@@ -120,8 +295,7 @@ namespace IngameScript
                 ownName = name;
                 init();
             }
-
-            private void init()
+            void init()
             {
                 antenna.Enabled = true;
                 if (antenna.TransmitMessage("Init message", MyTransmitTarget.Owned))
@@ -134,10 +308,6 @@ namespace IngameScript
                     parent.Echo("Com System failure");
                     return;
                 }
-                pointer = 0;
-                rnd = new Random(antenna.CustomNameWithFaction.GetHashCode());
-                currentID = (int)(rnd.NextDouble() * rnd.Next());
-
             }
 
             public void Run()
@@ -146,39 +316,57 @@ namespace IngameScript
                 {
                     return;
                 }
-
-                if (buffer.Count <= pointer)
+                if (responceList.Count == 0 && prioList.Count == 0)
                 {
-                    pointer = buffer.Count;
+                    parent.Echo("Nothing to do");
+                    return;
+                }
+                bool priolist = false;
+                Target current = null;
+                Message mes = null;
+                if (responceList.Keys.Count != 0)
+                {
+                    current = responceList[responceList.Keys.First()];
+                    mes = current.getMessage();
                 }
 
-                if (buffer.Count > pointer)
+                foreach (string name in responceList.Keys.ToList())
                 {
-                    string message = buffer[pointer].ToString(ownName);
-                    if (antenna.TransmitMessage(message, buffer[pointer].targetGroup))
+                    
+                    Status stat = responceList[name].isAlive();
+                    if ((stat & Status.Dead) == Status.Dead)
                     {
-                        parent.output.WritePublicText("Message send to " + buffer[pointer].targetName + " with ID " + buffer[pointer].ID + "\n", true);
-                        pointer++;
-                        if (buffer[pointer-1].tag != Tag.MES)
-                        {
-                            pointer--;
-                            buffer.RemoveAt(pointer);
-                        }
+                        //Not activ anymore
+                        responceList.Remove(name);
+                        parent.output.WritePublicText("Removed due to inactivity of target" + "\n", true);
+                    }
+                    if ((stat & Status.SendACK) == Status.SendACK)
+                    {
+                        parent.output.WritePublicText("Created responce" + "\n", true);
+                        //Create new Responce for given ID
+                        Message resp = new Message(Tag.RES, name, "", responceList[name].getLastRecieved(), MyTransmitTarget.Default);
+                        prioList.Add(resp);
                     }
                 }
-                parent.Echo("Pointer " + pointer + " Buffer " + buffer.Count);
-                for (int i = 0; i < pointer; i++)
+                if (prioList.Count != 0)
                 {
-                    if (buffer[i].tick < RTT)
+                    mes = prioList[0];
+                    prioList.RemoveAt(0);
+                    priolist = true;
+                }
+                if (mes != null && antenna.TransmitMessage(mes.ToString(ownName), mes.targetGroup))
+                {
+                    parent.output.WritePublicText("Message send to " + mes.targetName + " with ID " + mes.ID + "\n", true);
+                    parent.output.WritePublicText("Message was : " + mes.ToString(ownName) + "\n", true);
+                    if (mes.tag == Tag.MES && !priolist)
                     {
-                        parent.Echo("Tick at " + buffer[i].tick);
-                        buffer[i].tick++;
+                        current.increasePointer();
                     }
-                    else
+                    else if (mes.tag == Tag.RES && priolist)
                     {
-                        parent.output.WritePublicText("No Responce for message with ID " + buffer[i].ID + ", retrying \n", true);
-                        RepeatMessage(i);
+                        responceList[mes.targetName].sendACK(mes.ID, false);
                     }
+                    
                 }
             }
 
@@ -191,104 +379,96 @@ namespace IngameScript
                     Tag kindOf = (Tag)Enum.Parse(typeof(Tag), parts[(int) Part.KIND]);
                     switch (kindOf)
                     {
-                        case Tag.BAD:
-                            CheckMessage(parts[(int) Part.TARGET]);
-                            parent.output.WritePublicText("Recieved message with BAD tag from " + parts[(int) Part.TARGET] + "\n", true);
-                            break;
                         case Tag.RES:
-                            if (parts[2] == ownName)
+                            if (parts[(int) Part.TARGET] == ownName || responceList.Keys.Contains(parts[(int) Part.SENDER]))
                             {
-                                MessageResponce(int.Parse(parts[(int) Part.ID]));
-                                parent.output.WritePublicText("Recieved Reponse for message with ID " + parts[(int) Part.ID] + "\n", true);
+                                //TODO Remodel output
+                                parent.output.WritePublicText("Recieved Reponse for message(s) with ID " + parts[(int)Part.ID] + "\n", true);
+                                if (responceList[parts[(int)Part.SENDER]].recieveACK(int.Parse(parts[(int)Part.ID])))
+                                {
+                                    //End of communication reached, but remove will be called by stat = DEAD
+                                    parent.output.WritePublicText("Communication with " + parts[(int)Part.SENDER] + " completed, all Data transmitted\n", true);
+                                }
                             }
                             break;
                         case Tag.MES:
                             if (parts[2] == ownName)
                             {
-                                parent.output.WritePublicText("Recieved message from " + parts[(int) Part.SENDER] + "with ID " + parts[(int) Part.ID]+ "\n", true);
-                                SendResponce(parts[(int) Part.SENDER], int.Parse(parts[(int) Part.ID]));
-                                output = parts[(int) Part.KEY];
-                                if (parts.Length > 6)
+                                parent.output.WritePublicText("Recieved message from " + parts[(int)Part.SENDER] + "with ID " + parts[(int)Part.ID] + "\n", true);
+                                if (responceList.Count == 0 || !responceList.Keys.Contains(parts[(int)Part.SENDER]))
                                 {
-                                    output = output + "_" + parts[(int) Part.MESSAGE];
+                                    responceList.Add(parts[(int)Part.SENDER], new Target(parts[(int) Part.SENDER]));
+                                }
+                                int status = responceList[parts[(int)Part.SENDER]].checkRecieved(int.Parse(parts[(int)Part.ID]));
+                                if (status != 0 && status != -1)
+                                {
+                                    //Wrong ID recieved, message lost or else, ack last accepted message
+                                    responceList[parts[(int)Part.SENDER]].sendACK(status, true);
+                                    SendResponce(parts[(int)Part.SENDER], status);
+                                }
+                                if (status == 0)
+                                {
+                                    output = parts[(int)Part.MESSAGE];
                                 }
                             }
+                            break;
+                        case Tag.HEY:
+                            if (!knownContacts.Keys.Contains(parts[2]))
+                            {
+                                parent.output.WritePublicText("Recieved HEY from " + parts[2] + "\n", true);
+                                knownContacts.Add(parts[2], 0);
+                            }
+                            knownContacts[parts[2]] = 0;
                             break;
                     }
                 }
                 catch (Exception)
                 {
-                    SendError();
+
+                    parent.output.WritePublicText("Bad command recieved: " + message + "\n", true);
                 }
                 return output;
             }
-
-            void MessageResponce(int ID)
-            {
-                foreach (Message obj in buffer)
-                {
-                    if (obj.isEqual(ID))
-                    {
-                        buffer.Remove(obj);
-                        pointer--;
-                        break;
-                    }
-                }
-            }
-
-            void CheckMessage(string target)
-            {
-                for (int i = 0; i < pointer; i++)
-                {
-                    if (buffer[i].targetName == target)
-                    {
-                        RepeatMessage(i);
-                    }
-                }
-            }
-
-            void RepeatMessage(int index)
-            {
-                Message save = buffer[index];
-                save.tick = 0;
-                save.round++;
-                buffer.RemoveAt(index);
-                if (save.round >= RETRY)
-                {
-                    parent.output.WritePublicText("Message droped after " + RETRY + " retries, ID " + save.ID + "\n", true);
-                    return;
-                }
-                buffer.Add(save);
-                pointer--;
-            }
-
             
-
-            void SendError()
-            {
-                if (ComWorking)
-                {
-                    Message mes = new Message(Tag.BAD, ownName, "", -1, "", MyTransmitTarget.Ally|MyTransmitTarget.Owned);
-
-                }
-            }
-
             void SendResponce(string target, int ID, MyTransmitTarget group = MyTransmitTarget.Ally|MyTransmitTarget.Owned)
             {
                 if (ComWorking)
                 {
-                    Message mes = new Message(Tag.RES, target, "", ID, "", group);
-                    buffer.Add(mes);
+                    Message mes = new Message(Tag.RES, target, "",  ID, group);
+                    prioList.Add(mes);
                 }
             }
 
-            public void SendMessage(string target, string message, string key = "", MyTransmitTarget group = MyTransmitTarget.Ally | MyTransmitTarget.Owned)
+            public void SendMessage(string target, string message, string key = "", MyTransmitTarget group = MyTransmitTarget.Default)
             {
                 if (ComWorking)
                 {
-                    Message mes = new Message(Tag.MES, target, message, currentID, key, group);
-                    buffer.Add(mes);
-                    currentID++;
+                    if (responceList.Count == 0 || !responceList.Keys.Contains(target))
+                    {
+                        responceList.Add(target, new Target(target));
+                    }
+                    Message mes = new Message(Tag.MES, target, message, 56, group);
+                    responceList[target].addMessage(mes);
+                }
+            }
+
+            public void SendHey()
+            {
+                if (ComWorking)
+                {
+                    Message mes = new Message(Tag.HEY, ownName, "", 0, MyTransmitTarget.Default);
+                    prioList.Add(mes);
+                    foreach (string name in knownContacts.Keys.ToList())
+                    {
+                        if (knownContacts[name] > timeToContactLoss)
+                        {
+                            knownContacts.Remove(name);
+                        }
+                        else
+                        {
+                            knownContacts[name]++;
+                        }
+                    }
                 }
             }
         }

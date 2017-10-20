@@ -87,6 +87,7 @@ namespace IngameScript
             if (!isWorking)
             {
                 return;
+
             }
             if (argument.StartsWith("COM"))
             {
@@ -112,7 +113,7 @@ namespace IngameScript
             }
             if (argument == "HEY")
             {
-                //Send Hey message through network
+                comHandler.SendHey();
             }
             comHandler.Run();
         }
