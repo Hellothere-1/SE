@@ -135,6 +135,7 @@ namespace IngameScript
                         }
                         else
                         {
+                            //TODO Return ID of not sended Messages
                             sendBuffer.RemoveAt(i);
                             pointer--;
                         }
@@ -296,7 +297,7 @@ namespace IngameScript
                 init();
             }
 
-            private void init()
+            void init()
             {
                 antenna.Enabled = true;
                 if (antenna.TransmitMessage("Init message", MyTransmitTarget.Owned))
@@ -389,8 +390,7 @@ namespace IngameScript
                                 parent.output.WritePublicText("Recieved Reponse for message(s) with ID " + parts[(int)Part.ID] + "\n", true);
                                 if (responceList[parts[(int)Part.SENDER]].recieveACK(int.Parse(parts[(int)Part.ID])))
                                 {
-                                    //End of communication reached
-                                    responceList.Remove(parts[(int)Part.SENDER]);
+                                    //End of communication reached, but remove will be called by stat = DEAD
                                     parent.output.WritePublicText("Communication with " + parts[(int)Part.SENDER] + " completed, all Data transmitted\n", true);
                                 }
 
