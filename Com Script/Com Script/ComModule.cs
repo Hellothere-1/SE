@@ -18,7 +18,7 @@ namespace IngameScript
 {
     partial class Program
     {
-        public enum Tag { MES, RES, HEY};
+        public enum Tag { MES, RES, HEY, CHAT};
 
         [Flags]
         public enum Status {SendACK = 1, Activ = 2, MesNotACK = 4, Dead = 8 }
@@ -300,6 +300,7 @@ namespace IngameScript
                 antennaAlwaysOn = antennaOn;
                 init();
             }
+
             void init()
             {
                 antenna.Enabled = true;
@@ -346,7 +347,6 @@ namespace IngameScript
                 }
                 foreach (string name in responceList.Keys.ToList())
                 {
-                    
                     Status stat = responceList[name].isAlive();
                     if ((stat & Status.Dead) == Status.Dead)
                     {
@@ -412,7 +412,7 @@ namespace IngameScript
                                 }
                             }
                             break;
-                        case Tag.MES:
+                        case Tag.MES | Tag.CHAT:
                             if (parts[2] == ownName)
                             {
                                 parent.printOut("Recieved message from " + parts[(int)Part.SENDER] + " with ID " + parts[(int)Part.ID]);
@@ -429,7 +429,14 @@ namespace IngameScript
                                 }
                                 if (status == 0)
                                 {
-                                    output = parts[(int)Part.MESSAGE];
+                                    if (kindOf == Tag.MES)
+                                    {
+                                        output = parts[(int)Part.MESSAGE];
+                                    }
+                                    else
+                                    {
+                                        output = "CHAT_" + parts[(int)Part.MESSAGE];
+                                    }
                                 }
                             }
                             break;
@@ -459,7 +466,7 @@ namespace IngameScript
                 }
             }
 
-            public void SendMessage(string target, string message, string key = "", MyTransmitTarget group = MyTransmitTarget.Default)
+            public void SendMessage(string target, string message, bool chat, MyTransmitTarget group = MyTransmitTarget.Default)
             {
                 if (ComWorking)
                 {
@@ -467,7 +474,11 @@ namespace IngameScript
                     {
                         responceList.Add(target, new Target(target));
                     }
-                    Message mes = new Message(Tag.MES, target, message, 56, group);
+                    Message mes = new Message(Tag.MES, target, message, 0, group);
+                    if (chat)
+                    {
+                        mes.tag = Tag.CHAT;
+                    }
                     responceList[target].addMessage(mes);
                 }
             }
