@@ -31,17 +31,21 @@ namespace IngameScript
         string ANTENNA_NAME = "RC_Antenna";
         //Set custom output name which should be searched
         string OUTPUT_NAME = "RC_Out";
+        //Set custom chat window name which should be searched
+        string CHAT_NAME = "RC_Chat";
         //Set handling of antenna (0 = all, 1 = own and ally, 2 = own), deafult 1
         short ACCEPT_MESSAGE = 1;
         //END OF USER PART, do not change anything under this line !!
 
+        List<string> knownShips = new List<string>();
+
 
         ComModule comHandler;
+        List<IMyTextPanel> chat_windows = new List<IMyTextPanel>();
         IMyTerminalBlock output;
         IMyRadioAntenna antenna;
         bool outputIsTextPanel;
         bool isWorking = true;
-        //IDEE textpanel benutzen um mögliche kandidaten für nachrichten auszuwählen, dann achricht tippen und dann mit enter senden
         //Eventuell sogar chatverlauf etc (Dafür rückmeldung von Sendecode nötig...)
 
         public Program()
@@ -49,7 +53,7 @@ namespace IngameScript
             antenna = GridTerminalSystem.GetBlockWithName(ANTENNA_NAME) as IMyRadioAntenna;
             if(antenna != null)
             {
-                output = GridTerminalSystem.GetBlockWithName("RC_Out");
+                output = GridTerminalSystem.GetBlockWithName(OUTPUT_NAME);
                 try
                 {
                     IMyTextPanel textPanel = output as IMyTextPanel;
@@ -97,6 +101,20 @@ namespace IngameScript
                 isWorking = false;
                 return;
             }
+            GridTerminalSystem.GetBlocksOfType(chat_windows, x => x.CustomName.Contains(CHAT_NAME));
+            if (CHAT_MODE)
+            {
+                foreach (IMyTextPanel panel in chat_windows)
+                {
+                    panel.CustomData = "";
+                    panel.WritePublicText("    Com Chat V1.0    \n\n");
+                    panel.WritePublicText("Known Ships in Com Distance :\n", true);
+                }
+            }
+            knownShips.Add("Ship 1");
+            knownShips.Add("Ship 2");
+            knownShips.Add("Ship 3");
+            updateChatWindows();
             if (OWN_NAME == "")
             {
                 OWN_NAME = Me.CubeGrid.CustomName;
@@ -124,7 +142,7 @@ namespace IngameScript
             if (argument.StartsWith("Send"))
             {
                 string[] parts = argument.Split('_');
-                comHandler.SendMessage(parts[1], parts[2]);
+                comHandler.SendMessage(parts[1], parts[2], false);
             }
             if (argument == "HEY")
             {
@@ -133,6 +151,34 @@ namespace IngameScript
             comHandler.Run();
         }
 
+        public void updateShipStatus(string name, bool delete = false)
+        {
+            if (delete && knownShips.Contains(name))
+            {
+                knownShips.Remove(name);
+            }
+            if (!delete)
+            {
+                knownShips.Add(name);
+                updateChatWindows();
+            }
+        }
+
+        void updateChatWindows()
+        {
+            foreach (IMyTextPanel panel in chat_windows)
+            {
+                if (panel.CustomData == "")
+                {
+                    panel.WritePublicText("    Com Chat V1.0    \n\n");
+                    panel.WritePublicText("Known Ships in Com Distance : \n", true);
+                    foreach (string name in knownShips)
+                    {
+                        panel.WritePublicText("    " + name + "\n", true);
+                    }
+                }
+            }
+        }
 
         public void printOut(string mes)
         {

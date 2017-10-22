@@ -21,7 +21,7 @@ namespace IngameScript
         public enum Tag { MES, RES, HEY, CHAT};
 
         [Flags]
-        public enum Status {SendACK = 1, Activ = 2, MesNotACK = 4, Dead = 8 }
+        public enum Status {SendACK = 1, Activ = 2, MesNotSend = 4, Dead = 8 }
         
 
         class Message
@@ -79,6 +79,8 @@ namespace IngameScript
 
             //List to save all not ACKed Messages
             List<Message> sendBuffer = new List<Message>();
+            //Last message which could not be send
+            Message lastDropped = null;
             //Indicates wether a responce is needed right now or not
             bool responceNeeded = false;
             //Indicates the time in ticks until responce should be recieved
@@ -105,14 +107,13 @@ namespace IngameScript
                 currentID = rnd.Next();
             }
 
-            //Return the Status of this target (not finished by now)
+            //Return the Status of this target
             public Status isAlive()
             {
                 Status output = Status.Dead;
                 responceTime--;
                 if (responceTime <= 0 && responceNeeded)
                 {
-                    output = Status.MesNotACK;
                     for (int i = 0; i < pointer; i++)
                     {
                         sendBuffer[i].round++;
@@ -125,7 +126,8 @@ namespace IngameScript
                         }
                         else
                         {
-                            //TODO Return ID of not sended Messages
+                            output = Status.MesNotSend;
+                            lastDropped = sendBuffer[i];
                             sendBuffer.RemoveAt(i);
                             pointer--;
                         }
@@ -272,15 +274,7 @@ namespace IngameScript
         public class ComModule
         {
             enum Part { COM, KIND, TARGET, ID, SENDER, MESSAGE };
-
-            /*
-             *  Accepted Formats
-             *  
-             *  COM_MES_target_id_sender_message
-             *  COM_RES_target_id_sender
-             *  COM_HEY_sender
-            */
-
+            
             public Program parent;
             IMyRadioAntenna antenna;
             Dictionary<string, Target> responceList = new Dictionary<string, Target>();
@@ -358,6 +352,10 @@ namespace IngameScript
                         //Create new Responce for given ID
                         Message resp = new Message(Tag.RES, name, "", responceList[name].getLastRecieved(), MyTransmitTarget.Default);
                         prioList.Add(resp);
+                    }
+                    if ((stat & Status.MesNotSend) == Status.MesNotSend)
+                    {
+                        //TODO get ID to main function!!!
                     }
                 }
                 if (prioList.Count != 0)
