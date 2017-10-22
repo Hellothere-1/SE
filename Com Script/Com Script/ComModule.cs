@@ -154,11 +154,12 @@ namespace IngameScript
             }
             
             //Adds the given message to the sendBuffer
-            public void addMessage(Message mes)
+            public int addMessage(Message mes)
             {
                 mes.ID = currentID;
                 currentID++;
                 sendBuffer.Add(mes);
+                return currentID;
             }
 
             //Gets the first message for this target
@@ -268,6 +269,11 @@ namespace IngameScript
             {
                 return lastRecievedID;
             }
+
+            public Message getLastDropped()
+            {
+                return lastDropped;
+            }
         }
 
 
@@ -355,7 +361,9 @@ namespace IngameScript
                     }
                     if ((stat & Status.MesNotSend) == Status.MesNotSend)
                     {
+                        parent.messageDropped(responceList[name].getLastDropped().ToString());
                         //TODO get ID to main function!!!
+                        //TODO maybe change format a bit...
                     }
                 }
                 if (prioList.Count != 0)
@@ -442,6 +450,7 @@ namespace IngameScript
                             if (!knownContacts.Keys.Contains(parts[2]))
                             {
                                 knownContacts.Add(parts[2], 0);
+                                parent.updateShip(parts[2], false);
                             }
                             knownContacts[parts[2]] = 0;
                             parent.printOut("HEY from " + parts[2] + " recieved");
@@ -464,7 +473,7 @@ namespace IngameScript
                 }
             }
 
-            public void SendMessage(string target, string message, bool chat, MyTransmitTarget group = MyTransmitTarget.Default)
+            public int SendMessage(string target, string message, bool chat, MyTransmitTarget group = MyTransmitTarget.Default)
             {
                 if (ComWorking)
                 {
@@ -477,8 +486,9 @@ namespace IngameScript
                     {
                         mes.tag = Tag.CHAT;
                     }
-                    responceList[target].addMessage(mes);
+                    return responceList[target].addMessage(mes);
                 }
+                return -1;
             }
 
             public void SendHey()
@@ -492,6 +502,7 @@ namespace IngameScript
                         if (knownContacts[name] > timeToContactLoss)
                         {
                             knownContacts.Remove(name);
+                            parent.updateShip(name, true);
                         }
                         else
                         {

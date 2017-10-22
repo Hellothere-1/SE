@@ -24,7 +24,7 @@ namespace IngameScript
         //Defines if the Antenna should be always on
         bool ALWAYS_ON = false;
         //Defines if output Panels should be used as Chat windows
-        bool CHAT_MODE = false;
+        bool CHAT_MODE = true;
         //Defines the antenna broadcasting range (0 - 50000)
         int RANGE = 50000;
         //Set custom antenna name which should be searched
@@ -37,11 +37,11 @@ namespace IngameScript
         short ACCEPT_MESSAGE = 1;
         //END OF USER PART, do not change anything under this line !!
 
-        List<string> knownShips = new List<string>();
+        
 
 
         ComModule comHandler;
-        List<IMyTextPanel> chat_windows = new List<IMyTextPanel>();
+        Dictionary<int, ChatModule> chats = new Dictionary<int, ChatModule>();
         IMyTerminalBlock output;
         IMyRadioAntenna antenna;
         bool outputIsTextPanel;
@@ -50,6 +50,7 @@ namespace IngameScript
 
         public Program()
         {
+            List<IMyTextPanel> chat_windows = new List<IMyTextPanel>();
             antenna = GridTerminalSystem.GetBlockWithName(ANTENNA_NAME) as IMyRadioAntenna;
             if(antenna != null)
             {
@@ -101,20 +102,17 @@ namespace IngameScript
                 isWorking = false;
                 return;
             }
-            GridTerminalSystem.GetBlocksOfType(chat_windows, x => x.CustomName.Contains(CHAT_NAME));
             if (CHAT_MODE)
             {
-                foreach (IMyTextPanel panel in chat_windows)
+                GridTerminalSystem.GetBlocksOfType(chat_windows, x => x.CustomName.Contains(CHAT_NAME));
+                int id = 1;
+                foreach (IMyTextPanel lcd in chat_windows)
                 {
-                    panel.CustomData = "";
-                    panel.WritePublicText("    Com Chat V1.0    \n\n");
-                    panel.WritePublicText("Known Ships in Com Distance :\n", true);
+                    chats.Add(id, new ChatModule(lcd, id));
+                    id++;
                 }
             }
-            knownShips.Add("Ship 1");
-            knownShips.Add("Ship 2");
-            knownShips.Add("Ship 3");
-            updateChatWindows();
+            
             if (OWN_NAME == "")
             {
                 OWN_NAME = Me.CubeGrid.CustomName;
@@ -130,6 +128,12 @@ namespace IngameScript
             if (!isWorking)
             {
                 return;
+            }
+            if (argument.StartsWith("CHAT"))
+            {
+                string[] parts = argument.Split('_');
+                short id = short.Parse(parts[1]);
+                chats[id].checkArgument(parts[2]);
             }
             if (argument.StartsWith("COM"))
             {
@@ -151,35 +155,6 @@ namespace IngameScript
             comHandler.Run();
         }
 
-        public void updateShipStatus(string name, bool delete = false)
-        {
-            if (delete && knownShips.Contains(name))
-            {
-                knownShips.Remove(name);
-            }
-            if (!delete)
-            {
-                knownShips.Add(name);
-                updateChatWindows();
-            }
-        }
-
-        void updateChatWindows()
-        {
-            foreach (IMyTextPanel panel in chat_windows)
-            {
-                if (panel.CustomData == "")
-                {
-                    panel.WritePublicText("    Com Chat V1.0    \n\n");
-                    panel.WritePublicText("Known Ships in Com Distance : \n", true);
-                    foreach (string name in knownShips)
-                    {
-                        panel.WritePublicText("    " + name + "\n", true);
-                    }
-                }
-            }
-        }
-
         public void printOut(string mes)
         {
             if (output == null)
@@ -195,6 +170,19 @@ namespace IngameScript
             {
                 output.CustomData = output.CustomData + mes + "\n";
             }
+        }
+
+        public void updateShip(string name, bool delete)
+        {
+            foreach (ChatModule cm in chats.Values.ToList())
+            {
+                cm.updateShipStatus(name, delete);
+            }
+        }
+
+        public void messageDropped(string message)
+        {
+
         }
     }
 }
