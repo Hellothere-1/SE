@@ -109,19 +109,10 @@ namespace IngameScript
             public Status isAlive()
             {
                 Status output = Status.Dead;
-                if (sendBuffer.Count != 0 || responceNeeded)
-                {
-                    output = Status.Activ;
-                }
-                TARcounter--;
-                if (TARcounter <= 0 || ACKneeded)
-                {
-                    output = Status.Activ;
-                }
                 responceTime--;
                 if (responceTime <= 0 && responceNeeded)
                 {
-                    output = output | Status.MesNotACK;
+                    output = Status.MesNotACK;
                     for (int i = 0; i < pointer; i++)
                     {
                         sendBuffer[i].round++;
@@ -141,10 +132,20 @@ namespace IngameScript
                     }
                     pointer = 0;
                 }
+                if (sendBuffer.Count != 0 || responceNeeded || ACKneeded)
+                {
+                    TARcounter = 3 * MAXACKTIME;
+                    output = Status.Activ;
+                }
+                TARcounter--;
+                if (TARcounter > 0)
+                {
+                    output = Status.Activ;
+                }
                 ACKcounter--;
                 if (ACKcounter <= 0 && ACKneeded)
                 {
-                    output = output | Status.SendACK;
+                    output = Status.SendACK;
                     ACKneeded = false;
                 }
                 return output;
@@ -248,9 +249,10 @@ namespace IngameScript
                 if (!forced && lastACKedID == lastRecievedID)
                 {
                     //Communication endet successful, reseting variables
+                    /*When Communication is completed this object will be destroyed
                     lastRecievedID = 0;
                     awaitedID = 0;
-                    lastACKedID = 0;
+                    lastACKedID = 0;*/
                     ACKneeded = false;
                     return true;
                 }
@@ -286,18 +288,22 @@ namespace IngameScript
             List<Message> prioList = new List<Message>();
             string ownName;
             int timeToContactLoss = 10;
+            int antennaCounter = 0;
             bool ComWorking = false;
+            bool antennaAlwaysOn = false;
 
-            public ComModule(Program par, IMyRadioAntenna ant, string name)
+            public ComModule(Program par, IMyRadioAntenna ant, string name, bool antennaOn)
             {
                 parent = par;
                 antenna = ant;
                 ownName = name;
+                antennaAlwaysOn = antennaOn;
                 init();
             }
             void init()
             {
                 antenna.Enabled = true;
+                antenna.SetValue("EnableBroadCast", true);
                 if (antenna.TransmitMessage("Init message", MyTransmitTarget.Owned))
                 {
                     parent.Echo("Com System online");
@@ -306,8 +312,12 @@ namespace IngameScript
                 else
                 {
                     parent.Echo("Com System failure");
-                    return;
                 }
+                if (!antennaAlwaysOn)
+                {
+                    antenna.SetValue("EnableBroadCast", false);
+                }
+                
             }
 
             public void Run()
@@ -318,7 +328,12 @@ namespace IngameScript
                 }
                 if (responceList.Count == 0 && prioList.Count == 0)
                 {
-                    parent.Echo("Nothing to do");
+                    if (!antennaAlwaysOn && antenna.IsBroadcasting)
+                    {
+                        antenna.SetValue("EnableBroadCast", false);
+                        parent.printOut("Antenna deactivated due to low traffic");
+                        antennaCounter = 0;
+                    }
                     return;
                 }
                 bool priolist = false;
@@ -329,7 +344,6 @@ namespace IngameScript
                     current = responceList[responceList.Keys.First()];
                     mes = current.getMessage();
                 }
-
                 foreach (string name in responceList.Keys.ToList())
                 {
                     
@@ -338,7 +352,6 @@ namespace IngameScript
                     {
                         //Not activ anymore
                         responceList.Remove(name);
-                        parent.printOut("Removed due to inactivity of target " + name);
                     }
                     if ((stat & Status.SendACK) == Status.SendACK)
                     {
@@ -350,13 +363,11 @@ namespace IngameScript
                 if (prioList.Count != 0)
                 {
                     mes = prioList[0];
-                    prioList.RemoveAt(0);
                     priolist = true;
                 }
-                if (mes != null && antenna.TransmitMessage(mes.ToString(ownName), mes.targetGroup))
+                if (mes != null && antenna.IsBroadcasting && antennaCounter > 3 && antenna.TransmitMessage(mes.ToString(ownName), mes.targetGroup))
                 {
-                    parent.printOut("Message send to " + mes.targetName + " with ID " + mes.ID);
-                    parent.printOut("Message was : " + mes.ToString(ownName));
+                    parent.printOut("Message send : " + mes.ToString(ownName));
                     if (mes.tag == Tag.MES && !priolist)
                     {
                         current.increasePointer();
@@ -365,8 +376,20 @@ namespace IngameScript
                     {
                         responceList[mes.targetName].sendACK(mes.ID, false);
                     }
-                    
+                    if (priolist)
+                    {
+                        prioList.RemoveAt(0);
+                    }
                 }
+                else
+                {
+                    if (!antenna.IsBroadcasting)
+                    {
+                        antenna.SetValue("EnableBroadCast", true);
+                    }
+                    antennaCounter++;
+                }
+                
             }
 
             public string ProcessMessage(string message)
@@ -392,7 +415,7 @@ namespace IngameScript
                         case Tag.MES:
                             if (parts[2] == ownName)
                             {
-                                parent.printOut("Recieved message from " + parts[(int)Part.SENDER] + "with ID " + parts[(int)Part.ID]);
+                                parent.printOut("Recieved message from " + parts[(int)Part.SENDER] + " with ID " + parts[(int)Part.ID]);
                                 if (responceList.Count == 0 || !responceList.Keys.Contains(parts[(int)Part.SENDER]))
                                 {
                                     responceList.Add(parts[(int)Part.SENDER], new Target(parts[(int) Part.SENDER]));
@@ -416,12 +439,12 @@ namespace IngameScript
                                 knownContacts.Add(parts[2], 0);
                             }
                             knownContacts[parts[2]] = 0;
+                            parent.printOut("HEY from " + parts[2] + " recieved");
                             break;
                     }
                 }
                 catch (Exception)
                 {
-
                     parent.printOut("Bad command recieved: " + message);
                 }
                 return output;

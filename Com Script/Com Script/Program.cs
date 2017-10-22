@@ -23,6 +23,8 @@ namespace IngameScript
         string OWN_NAME = "";
         //Defines if the Antenna should be always on
         bool ALWAYS_ON = false;
+        //Defines if output Panels should be used as Chat windows
+        bool CHAT_MODE = false;
         //Defines the antenna broadcasting range (0 - 50000)
         int RANGE = 50000;
         //Set custom antenna name which should be searched
@@ -47,6 +49,17 @@ namespace IngameScript
             antenna = GridTerminalSystem.GetBlockWithName(ANTENNA_NAME) as IMyRadioAntenna;
             if(antenna != null)
             {
+                output = GridTerminalSystem.GetBlockWithName("RC_Out");
+                try
+                {
+                    IMyTextPanel textPanel = output as IMyTextPanel;
+                    textPanel.WritePublicText("");
+                    outputIsTextPanel = true;
+                }
+                catch (Exception)
+                {
+                    outputIsTextPanel = false;
+                }
                 //TODO assign antenna to pb in script (even possible?)
                 isWorking = true;
                 antenna.SetValueFloat("Radius", RANGE);
@@ -71,11 +84,11 @@ namespace IngameScript
                 }
                 if (ALWAYS_ON)
                 {
-                    antenna.SetValueBool("Broadcasting", true);
+                    antenna.SetValue("EnableBroadCast", true);
                 }
                 else
                 {
-                    antenna.SetValueBool("Broadcasting", false);
+                    antenna.SetValue("EnableBroadCast", false);
                 }
             }
             else
@@ -84,24 +97,14 @@ namespace IngameScript
                 isWorking = false;
                 return;
             }
-            output = GridTerminalSystem.GetBlockWithName("RC_Out");
-            try
-            {
-                IMyTextPanel textPanel = output as IMyTextPanel;
-                textPanel.WritePublicText("");
-                outputIsTextPanel = true;
-            }
-            catch (Exception)
-            {
-                outputIsTextPanel = false;
-            }
             if (OWN_NAME == "")
             {
                 OWN_NAME = Me.CubeGrid.CustomName;
             }
             OWN_NAME = OWN_NAME + "/" + Me.EntityId % 10000;
-            comHandler = new ComModule(this, antenna, OWN_NAME);
-            Me.CustomName = "PB_COM _" + OWN_NAME;
+            comHandler = new ComModule(this, antenna, OWN_NAME, ALWAYS_ON);
+            Me.CustomName = "PB-COM-" + OWN_NAME;
+            Me.CustomData = "";
         }
 
         public void Main(string argument)
@@ -109,12 +112,14 @@ namespace IngameScript
             if (!isWorking)
             {
                 return;
-
             }
             if (argument.StartsWith("COM"))
             {
                 string input = comHandler.ProcessMessage(argument);
-                printOut(input);
+                if (input != "")
+                {
+                    printOut(input);
+                }
             }
             if (argument.StartsWith("Send"))
             {
