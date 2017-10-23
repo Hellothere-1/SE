@@ -143,6 +143,25 @@ namespace IngameScript
                 if (input != "")
                 {
                     printOut(input);
+                    if (input.StartsWith("CHAT_Chat"))
+                    {
+                        string[] inputParts = input.Split('/');
+                        int id = int.Parse(inputParts[2]);
+                        printOut("Recieved Id is " + id);
+                        if (id != 0)
+                        {
+                            chats[id].addText(inputParts[3]);
+                        }
+                        else
+                        {
+                            printOut("Search Chat window");
+                            string sender = argument.Split('_')[4];
+                            foreach (ChatModule cm in chats.Values.ToList())
+                            {
+                                cm.lockRequest(sender, int.Parse(inputParts[1]));
+                            }
+                        }
+                    }
                 }
             }
             if (argument.StartsWith("Send"))
@@ -207,21 +226,22 @@ namespace IngameScript
                 case Request_Options.ACCEPT:
                     foreach (ChatModule cm in chats.Values.ToList())
                     {
-                        if (!cm.isEqual(ID))
+                        cm.releaseRequest(requester);
+                        if (cm.isEqual(ID))
                         {
-                            cm.releaseRequest(requester);
+                            cm.SetChatPartner();
                         }
                     }
                     break;
                 case Request_Options.DECLINE:
-                    strinchats[ID].releaseRequest(requester);
+                    chats[ID].releaseRequest(requester);
                     break;
                 case Request_Options.DECLINE_ALL:
                     foreach (ChatModule cm in chats.Values.ToList())
                     {
-                        //release all terminals
+                        cm.releaseRequest(requester);
                     }
-                    break
+                    break;
             }
         }
     }

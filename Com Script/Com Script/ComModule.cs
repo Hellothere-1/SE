@@ -374,7 +374,7 @@ namespace IngameScript
                 if (mes != null && antenna.IsBroadcasting && antennaCounter > 3 && antenna.TransmitMessage(mes.ToString(ownName), mes.targetGroup))
                 {
                     parent.printOut("Message send : " + mes.ToString(ownName));
-                    if (mes.tag == Tag.MES && !priolist)
+                    if ((mes.tag == Tag.MES || mes.tag == Tag.CHAT) && !priolist)
                     {
                         current.increasePointer();
                     }
@@ -477,6 +477,7 @@ namespace IngameScript
             {
                 if (ComWorking)
                 {
+                    parent.printOut("New Message created " + message);
                     if (responceList.Count == 0 || !responceList.Keys.Contains(target))
                     {
                         responceList.Add(target, new Target(target));

@@ -22,13 +22,14 @@ namespace IngameScript
         {
             const short lcdLenght = 20;
 
-            enum Window { MAIN, SELECTION, CHAT, REQUEST};
+            enum Window { MAIN, SELECTION, REQUEST, CHAT};
 
             Program parent;
             Window current = Window.MAIN;
             List<string> knownShips = new List<string>();
             string currentTarget = "";
             string currentRequest = "";
+            int requesterID = 0;
             int targetTerminalID = 0;
             IMyTextPanel window;
             short width = 50;
@@ -50,11 +51,12 @@ namespace IngameScript
                 return input == ID;
             }
 
-            public void SetChatPartner(string name, int id)
+            public void SetChatPartner()
             {
-                currentTarget = name;
-                targetTerminalID = id;
+                currentTarget = currentRequest;
+                targetTerminalID = requesterID;
                 current = Window.CHAT;
+                updateChatWindows();
             }
 
             public void updateShipStatus(string name, bool delete)
@@ -122,15 +124,17 @@ namespace IngameScript
                 {
                     string mes = "Chat/" + ID + "/" + targetTerminalID + "/" + input;
                     parent.comHandler.SendMessage(currentTarget, mes, true);
+                    parent.Echo("Message send");
                 }
             }
 
-            public void lockRequest(string name)
+            public void lockRequest(string name, int requestID)
             {
                 if (current == Window.MAIN)
                 {
                     current = Window.REQUEST;
                     currentRequest = name;
+                    requesterID = requestID;
                     updateChatWindows();
                 }
             }
@@ -142,6 +146,7 @@ namespace IngameScript
                     current = Window.MAIN;
                     string lastRequest = currentRequest;
                     currentRequest = "";
+                    requesterID = 0;
                     updateChatWindows();
                     return lastRequest;
                 }
@@ -154,11 +159,6 @@ namespace IngameScript
                 string output = "";
                 if (lines[lines.Count - 1] == "")
                 {
-                    parent.Echo("Message ready");
-                    //Message completed, extract and send it
-                    /* No real time input, so no real time check needed
-                    if (window.CustomData.Split('\n').Length < lines.Count)
-                    {*/
                     short counter = (short)(lines.Count - 1);
                     while (!lines[counter].StartsWith("[You]"))
                     {
@@ -189,11 +189,6 @@ namespace IngameScript
                     string input = lines[lines.Count - 1];
                     input = formatMessage(input);
                     string[] inputLines = input.Split('\n');
-                    parent.Echo("Process Input : " + inputLines.Length);
-                    foreach (string part in inputLines)
-                    {
-                        parent.Echo(part);
-                    }
                     if (inputLines.Length != 1)
                     {
                         lines[lines.Count - 1] = inputLines[0];
@@ -201,11 +196,18 @@ namespace IngameScript
                         window.CustomData = "";
                         foreach (string line in lines)
                         {
-                            window.CustomData = window.CustomData + line + "\n";
+                            if (line != lines[lines.Count - 1])
+                            {
+                                window.CustomData = window.CustomData + line + "\n";
+                            }
+                            else
+                            {
+                                window.CustomData = window.CustomData + line;
+                            }
                         }
+                        
                         updateChatWindows();
                     }
-                    
                 }
                 return output;
             }
@@ -228,7 +230,6 @@ namespace IngameScript
                             }
                         }
                         break;
-
                     case Window.CHAT:
                         if (window.CustomData == "")
                         {
@@ -241,7 +242,15 @@ namespace IngameScript
                             string[] text = window.CustomData.Split('\n');
                             foreach (string line in text)
                             {
-                                window.WritePublicText(line + "\n", true);
+                                if (line != text[text.Length -1])
+                                {
+                                    window.WritePublicText(line + "\n", true);
+                                }
+                                else
+                                {
+                                    window.WritePublicText(line, true);
+                                }
+                                
                             }
                         }
                         break;
@@ -250,9 +259,9 @@ namespace IngameScript
                         window.WritePublicText("Com Chat V1.0 LCD: " + ID + "\n\n");
                         string option = knownShips[pointer];
                         window.WritePublicText("        " + option + "\n", true);
-                        for (int i = 2; i < Enum.GetNames(typeof(Window)).Length; i++)
+                        for (int i = 3; i < Enum.GetNames(typeof(Window)).Length; i++)
                         {
-                            if (subpointer != i - 2)
+                            if (subpointer != i - 3)
                             {
                                 window.WritePublicText("                " + (Window)i + "\n", true);
                             }
@@ -264,7 +273,7 @@ namespace IngameScript
                         break;
                     case Window.REQUEST:
                         window.WritePublicText("Com Chat V1.0 LCD: " + ID + "\n\n");
-                        window.WritePublicText("Hot single " + currentRequest + " in your area wants to chat with you", true);
+                        window.WritePublicText("Hot single " + currentRequest + " in your area wants to chat with you\n", true);
                         for (int i = 0; i < Enum.GetNames(typeof(Request_Options)).Length; i++)
                         {
                             if (subpointer != i)
@@ -309,22 +318,22 @@ namespace IngameScript
                         }
                         if (current == Window.REQUEST && subpointer > 0)
                         {
-                            subpointer++;
+                            subpointer--;
                         }
                         break;
                     case "Confirm":
                         if (current == Window.MAIN && knownShips.Count() > 0)
                         {
                             current = Window.SELECTION;
-                            if (Enum.GetNames(typeof(Window)).Length == 3)
+                            if (Enum.GetNames(typeof(Window)).Length == 4)
                             {
-                                current = (Window)2;
+                                current = (Window)3;
                             }
                             currentTarget = knownShips[pointer];
                         }
                         else if (current == Window.SELECTION)
                         {
-                            current = (Window)(2 + subpointer);
+                            current = (Window)(3 + subpointer);
                             currentTarget = knownShips[pointer];
                         }
                         else if (current == Window.REQUEST)
@@ -335,6 +344,7 @@ namespace IngameScript
                         break;
                     case "Abort":
                         current = Window.MAIN;
+                        window.CustomData = "";
                         subpointer = 0;
                         break;
                     default:
@@ -354,13 +364,13 @@ namespace IngameScript
                 {
                     if (length + word.Length + 1 <= width)
                     {
-                        result = result + " " + word;
-                        length = length + word.Length;
+                        result = result + word + " ";
+                        length = length + word.Length + 1;
                     }
                     else
                     {
-                        result = result + "\n" + word;
-                        length = word.Length;
+                        result = result + "\n" + word + " ";
+                        length = word.Length + 1;
                     }
                 }
                 return result;
