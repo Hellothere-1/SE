@@ -37,8 +37,9 @@ namespace IngameScript
         short ACCEPT_MESSAGE = 1;
         //END OF USER PART, do not change anything under this line !!
 
-        
 
+
+        public enum Request_Options { ACCEPT, DECLINE, DECLINE_ALL }
 
         ComModule comHandler;
         Dictionary<int, ChatModule> chats = new Dictionary<int, ChatModule>();
@@ -197,6 +198,31 @@ namespace IngameScript
         public void messageDropped(string message)
         {
 
+        }
+
+        public void HandleRequest(int ID, Request_Options option, string requester)
+        {
+            switch (option)
+            {
+                case Request_Options.ACCEPT:
+                    foreach (ChatModule cm in chats.Values.ToList())
+                    {
+                        if (!cm.isEqual(ID))
+                        {
+                            cm.releaseRequest(requester);
+                        }
+                    }
+                    break;
+                case Request_Options.DECLINE:
+                    strinchats[ID].releaseRequest(requester);
+                    break;
+                case Request_Options.DECLINE_ALL:
+                    foreach (ChatModule cm in chats.Values.ToList())
+                    {
+                        //release all terminals
+                    }
+                    break
+            }
         }
     }
 }

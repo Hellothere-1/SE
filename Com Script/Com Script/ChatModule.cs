@@ -22,12 +22,13 @@ namespace IngameScript
         {
             const short lcdLenght = 20;
 
-            enum Window { MAIN, SELECTION, CHAT};
+            enum Window { MAIN, SELECTION, CHAT, REQUEST};
 
             Program parent;
             Window current = Window.MAIN;
             List<string> knownShips = new List<string>();
             string currentTarget = "";
+            string currentRequest = "";
             int targetTerminalID = 0;
             IMyTextPanel window;
             short width = 50;
@@ -44,6 +45,18 @@ namespace IngameScript
                 window.CustomData = "";
             }
 
+            public bool isEqual(int input)
+            {
+                return input == ID;
+            }
+
+            public void SetChatPartner(string name, int id)
+            {
+                currentTarget = name;
+                targetTerminalID = id;
+                current = Window.CHAT;
+            }
+
             public void updateShipStatus(string name, bool delete)
             {
                 if (delete && knownShips.Contains(name))
@@ -53,16 +66,17 @@ namespace IngameScript
                         pointer--;
                     }
                     knownShips.Remove(name);
-                    updateChatWindows();
                 }
                 if (!delete)
                 {
                     if (!knownShips.Contains(name))
                     {
                         knownShips.Add(name);
-                        updateChatWindows();
                     }
-                    
+                }
+                if (current == Window.MAIN)
+                {
+                    updateChatWindows();
                 }
                 
             }
@@ -111,7 +125,29 @@ namespace IngameScript
                 }
             }
 
+            public void lockRequest(string name)
+            {
+                if (current == Window.MAIN)
+                {
+                    current = Window.REQUEST;
+                    currentRequest = name;
+                    updateChatWindows();
+                }
+            }
 
+            public string releaseRequest(string name)
+            {
+                if (current == Window.REQUEST && currentRequest == name)
+                {
+                    current = Window.MAIN;
+                    string lastRequest = currentRequest;
+                    currentRequest = "";
+                    updateChatWindows();
+                    return lastRequest;
+                }
+                return "";
+            }
+            
             string getInput()
             {
                 List<string> lines = window.GetPublicText().Split('\n').ToList();
@@ -211,7 +247,7 @@ namespace IngameScript
                         break;
 
                     case Window.SELECTION:
-                        window.WritePublicText("Com Chat V1.0 LCD: " + ID + "\n\nList of known Ships in Com Distance :\n");
+                        window.WritePublicText("Com Chat V1.0 LCD: " + ID + "\n\n");
                         string option = knownShips[pointer];
                         window.WritePublicText("        " + option + "\n", true);
                         for (int i = 2; i < Enum.GetNames(typeof(Window)).Length; i++)
@@ -223,6 +259,21 @@ namespace IngameScript
                             else
                             {
                                 window.WritePublicText("          =>  " + (Window)i + "\n", true);
+                            }
+                        }
+                        break;
+                    case Window.REQUEST:
+                        window.WritePublicText("Com Chat V1.0 LCD: " + ID + "\n\n");
+                        window.WritePublicText("Hot single " + currentRequest + " in your area wants to chat with you", true);
+                        for (int i = 0; i < Enum.GetNames(typeof(Request_Options)).Length; i++)
+                        {
+                            if (subpointer != i)
+                            {
+                                window.WritePublicText("                " + (Request_Options)i + "\n", true);
+                            }
+                            else
+                            {
+                                window.WritePublicText("          =>  " + (Request_Options)i + "\n", true);
                             }
                         }
                         break;
@@ -242,6 +293,10 @@ namespace IngameScript
                         {
                             subpointer++;
                         }
+                        if (current == Window.REQUEST && subpointer < Enum.GetNames(typeof(Request_Options)).Length - 1)
+                        {
+                            subpointer++;
+                        }
                         break;
                     case "Up":
                         if (current == Window.MAIN && pointer > 0)
@@ -252,6 +307,10 @@ namespace IngameScript
                         {
                             subpointer--;
                         }
+                        if (current == Window.REQUEST && subpointer > 0)
+                        {
+                            subpointer++;
+                        }
                         break;
                     case "Confirm":
                         if (current == Window.MAIN && knownShips.Count() > 0)
@@ -261,12 +320,18 @@ namespace IngameScript
                             {
                                 current = (Window)2;
                             }
+                            currentTarget = knownShips[pointer];
                         }
                         else if (current == Window.SELECTION)
                         {
                             current = (Window)(2 + subpointer);
+                            currentTarget = knownShips[pointer];
                         }
-                        currentTarget = knownShips[pointer];
+                        else if (current == Window.REQUEST)
+                        {
+                            parent.HandleRequest(ID, (Request_Options)subpointer, currentRequest);
+                        }
+                        
                         break;
                     case "Abort":
                         current = Window.MAIN;
@@ -317,8 +382,6 @@ namespace IngameScript
                 knownShips.Add("Ship 4");
                 updateChatWindows();
             }
-
-
         }
     }
 }
