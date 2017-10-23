@@ -22,22 +22,26 @@ namespace IngameScript
         {
             const short lcdLenght = 20;
 
-            enum Window { MAIN, SELECTION, CHAT, ORDER, POSITION };
+            enum Window { MAIN, SELECTION, CHAT};
 
+            Program parent;
             Window current = Window.MAIN;
             List<string> knownShips = new List<string>();
             string currentTarget = "";
+            int targetTerminalID = 0;
             IMyTextPanel window;
-            short width;
+            short width = 50;
             int pointer = 0;
             int subpointer = 0;
             int ID;
 
-            public ChatModule(IMyTextPanel panel, int number)
+            public ChatModule(Program par,IMyTextPanel panel, int number)
             {
+                parent = par;
                 window = panel;
                 ID = number;
                 initWindow();
+                window.CustomData = "";
             }
 
             public void updateShipStatus(string name, bool delete)
@@ -49,20 +53,125 @@ namespace IngameScript
                         pointer--;
                     }
                     knownShips.Remove(name);
+                    updateChatWindows();
                 }
                 if (!delete)
                 {
-                    knownShips.Add(name);
-                    updateChatWindows();
+                    if (!knownShips.Contains(name))
+                    {
+                        knownShips.Add(name);
+                        updateChatWindows();
+                    }
+                    
                 }
+                
             }
 
             public void addText(string mes)
             {
                 string output = "[" + currentTarget + "]: " + mes + "\n";
                 output = formatMessage(output);
-                window.CustomData = window.CustomData + output;
-                updateChatWindows();
+                string[] entry = output.Split('\n');
+                string[] lines = window.GetPublicText().Split('\n');
+                List<string> linesList = lines.ToList();
+                short counter = (short)(lines.Length - 1);
+                while (!lines[counter].StartsWith("[You]"))
+                {
+                    counter--;
+                }
+                counter--;
+                foreach (string line in entry)
+                {
+                    linesList.Insert(counter, line);
+                    counter++;
+                }
+                lines = linesList.ToArray();
+                window.CustomData = "";
+                foreach (string line in lines)
+                {
+                    window.CustomData = window.CustomData + line + "\n";
+                }
+                if (current == Window.CHAT)
+                {
+                    updateChatWindows();
+                }
+            }
+            
+            public void run()
+            {
+                if (current != Window.CHAT)
+                {
+                    return;
+                }
+                string input = getInput();
+                if (input != "")
+                {
+                    string mes = "Chat/" + ID + "/" + targetTerminalID + "/" + input;
+                    parent.comHandler.SendMessage(currentTarget, mes, true);
+                }
+            }
+
+
+            string getInput()
+            {
+                List<string> lines = window.GetPublicText().Split('\n').ToList();
+                string output = "";
+                if (lines[lines.Count - 1] == "")
+                {
+                    parent.Echo("Message ready");
+                    //Message completed, extract and send it
+                    /* No real time input, so no real time check needed
+                    if (window.CustomData.Split('\n').Length < lines.Count)
+                    {*/
+                    short counter = (short)(lines.Count - 1);
+                    while (!lines[counter].StartsWith("[You]"))
+                    {
+                        parent.Echo(lines[counter]);
+                        counter--;
+                        output = lines[counter] + " " + output;
+                    }
+                    lines[lines.Count - 1] = "[You]: ";
+                    window.CustomData = "";
+                    //Rewrite custom data with new content
+                    foreach (string line in lines)
+                    {
+                        if (line != "[You]: ")
+                        {
+                            window.CustomData = window.CustomData + line + "\n";
+                        }
+                        else
+                        {
+                            window.CustomData = window.CustomData + line;
+                        }
+                    }
+                    updateChatWindows();
+                    /*
+                }*/
+                }
+                else if(lines[lines.Count - 1] != "[You]: ")
+                {
+                    string input = lines[lines.Count - 1];
+                    input = formatMessage(input);
+                    string[] inputLines = input.Split('\n');
+                    parent.Echo("Process Input : " + inputLines.Length);
+                    foreach (string part in inputLines)
+                    {
+                        parent.Echo(part);
+                    }
+                    if (inputLines.Length != 1)
+                    {
+                        lines[lines.Count - 1] = inputLines[0];
+                        lines.Add(inputLines[1]);
+                        window.CustomData = "";
+                        foreach (string line in lines)
+                        {
+                            window.CustomData = window.CustomData + line + "\n";
+                        }
+                        updateChatWindows();
+                    }
+                    
+                }
+                return output;
             }
 
             void updateChatWindows()
@@ -85,26 +194,18 @@ namespace IngameScript
                         break;
 
                     case Window.CHAT:
-                        window.WritePublicText("Com Chat V1.0 LCD: " + ID + "\n\nChatting with " + currentTarget + " :\n");
-                        string[] text = window.CustomData.Split('\n');
-                        short startIndex = 0;
-                        if (text.Length > lcdLenght)
+                        if (window.CustomData == "")
                         {
-                            startIndex = (short)(text.Length - 20);
+                            window.WritePublicText("Com Chat V1.0 LCD: " + ID + "\n\nChatting with " + currentTarget + " :\n");
+                            window.WritePublicText("[You]: ", true);
                         }
-                        //thank you c# for this shit
-                        for (startIndex = startIndex; startIndex < text.Length; startIndex++)
+                        else
                         {
-                            window.WritePublicText(text[startIndex], true);
-                        }
-                        window.WritePublicText("[You]: ", true);
-                        if (text.Length >= 40)
-                        {
-                            startIndex = 10;
-                            window.CustomData = "";
-                            for (startIndex = startIndex; startIndex < text.Length; startIndex++)
+                            window.WritePublicText("");
+                            string[] text = window.CustomData.Split('\n');
+                            foreach (string line in text)
                             {
-                                window.CustomData = window.CustomData + text[startIndex];
+                                window.WritePublicText(line + "\n", true);
                             }
                         }
                         break;
@@ -133,7 +234,7 @@ namespace IngameScript
                 switch (argument)
                 {
                     case "Down":
-                        if (pointer < knownShips.Count - 1 && current != Window.SELECTION)
+                        if (current == Window.MAIN && pointer < knownShips.Count - 1)
                         {
                             pointer++;
                         }
@@ -143,7 +244,7 @@ namespace IngameScript
                         }
                         break;
                     case "Up":
-                        if (pointer > 0 && current != Window.SELECTION)
+                        if (current == Window.MAIN && pointer > 0)
                         {
                             pointer--;
                         }
@@ -158,14 +259,14 @@ namespace IngameScript
                             current = Window.SELECTION;
                             if (Enum.GetNames(typeof(Window)).Length == 3)
                             {
-                                current = (Window)3;
+                                current = (Window)2;
                             }
                         }
                         else if (current == Window.SELECTION)
                         {
                             current = (Window)(2 + subpointer);
-                            currentTarget = knownShips[pointer];
                         }
+                        currentTarget = knownShips[pointer];
                         break;
                     case "Abort":
                         current = Window.MAIN;
@@ -181,9 +282,9 @@ namespace IngameScript
 
             string formatMessage(string message)
             {
-                string[] words = message.Split(' ');
+                string[] words = message.Split(' ', '\n');
                 string result = "";
-                int length = result.Length;
+                int length = 0;
                 foreach (string word in words)
                 {
                     if (length + word.Length + 1 <= width)
@@ -208,7 +309,7 @@ namespace IngameScript
                 string info = window.DetailedInfo.Split('\n')[0];
                 if (info != "Type: Wide LCD panel")
                 {
-                    width = 35;
+                    width = 30;
                 }
                 knownShips.Add("Ship 1");
                 knownShips.Add("Ship 2");

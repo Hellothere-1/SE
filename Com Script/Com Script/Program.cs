@@ -46,6 +46,7 @@ namespace IngameScript
         IMyRadioAntenna antenna;
         bool outputIsTextPanel;
         bool isWorking = true;
+        short chat_counter = 0;
         //Eventuell sogar chatverlauf etc (Dafür rückmeldung von Sendecode nötig...)
 
         public Program()
@@ -108,7 +109,7 @@ namespace IngameScript
                 int id = 1;
                 foreach (IMyTextPanel lcd in chat_windows)
                 {
-                    chats.Add(id, new ChatModule(lcd, id));
+                    chats.Add(id, new ChatModule(this, lcd, id));
                     id++;
                 }
             }
@@ -152,6 +153,19 @@ namespace IngameScript
             {
                 comHandler.SendHey();
             }
+            if (chat_counter >= 5)
+            {
+                chat_counter = 0;
+                foreach (ChatModule chat in chats.Values.ToList())
+                {
+                    chat.run();
+                }
+            }
+            else
+            {
+                chat_counter++;
+            }
+            
             comHandler.Run();
         }
 
