@@ -268,10 +268,12 @@ namespace IngameScript
                         {
                             window.WritePublicText("");
                             string[] text = window.CustomData.Split('\n');
-                            int start= text.Length <= 24 ? 0 : text.Length - 24;
-                            foreach (string line in text)
+                            string[] save = new string[24];
+                            int start = text.Length <= 24 ? 0 : text.Length - 24;
+                            text.CopyTo(save, start);
+                            foreach (string line in save)
                             {
-                                if (line != text[text.Length - 1])
+                                if (line != save[save.Length - 1])
                                 {
                                     window.WritePublicText(line + "\n", true);
                                 }
@@ -283,7 +285,6 @@ namespace IngameScript
                             }
                         }
                         break;
-
                     case Window.SELECTION:
                         window.WritePublicText("Com Chat V1.0 LCD: " + ID + "\n\n");
                         string option = knownShips[pointer];
