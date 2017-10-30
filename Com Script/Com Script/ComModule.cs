@@ -24,7 +24,7 @@ namespace IngameScript
         public enum Status {SendACK = 1, Activ = 2, MesNotSend = 4, Dead = 8 }
         
 
-        class Message
+        public class Message
         {
             public int ID;
             public int round;
@@ -361,9 +361,7 @@ namespace IngameScript
                     }
                     if ((stat & Status.MesNotSend) == Status.MesNotSend)
                     {
-                        parent.messageDropped(responceList[name].getLastDropped().ToString());
-                        //TODO get ID to main function!!!
-                        //TODO maybe change format a bit...
+                        parent.chathandler.messageDropped(responceList[name].getLastDropped());
                     }
                 }
                 if (prioList.Count != 0)
@@ -373,7 +371,7 @@ namespace IngameScript
                 }
                 if (mes != null && antenna.IsBroadcasting && antennaCounter > 3 && antenna.TransmitMessage(mes.ToString(ownName), mes.targetGroup))
                 {
-                    parent.printOut("Message send : " + mes.ToString(ownName));
+                    parent.printOut("Message send : " + mes.payload);
                     if ((mes.tag == Tag.MES || mes.tag == Tag.CHAT) && !priolist)
                     {
                         current.increasePointer();
@@ -435,14 +433,7 @@ namespace IngameScript
                                 }
                                 if (status == 0)
                                 {
-                                    if (kindOf == Tag.MES)
-                                    {
-                                        output = parts[(int)Part.MESSAGE];
-                                    }
-                                    else
-                                    {
-                                        output = "CHAT_" + parts[(int)Part.MESSAGE];
-                                    }
+                                    output = parts[(int)Part.MESSAGE];
                                 }
                             }
                             break;
@@ -450,7 +441,7 @@ namespace IngameScript
                             if (!knownContacts.Keys.Contains(parts[2]))
                             {
                                 knownContacts.Add(parts[2], 0);
-                                parent.updateShip(parts[2], false);
+                                parent.chathandler.updateShip(parts[2], false);
                             }
                             knownContacts[parts[2]] = 0;
                             parent.printOut("HEY from " + parts[2] + " recieved");
@@ -477,7 +468,6 @@ namespace IngameScript
             {
                 if (ComWorking)
                 {
-                    parent.printOut("New Message created " + message);
                     if (responceList.Count == 0 || !responceList.Keys.Contains(target))
                     {
                         responceList.Add(target, new Target(target));
@@ -503,7 +493,7 @@ namespace IngameScript
                         if (knownContacts[name] > timeToContactLoss)
                         {
                             knownContacts.Remove(name);
-                            parent.updateShip(name, true);
+                            parent.chathandler.updateShip(name, true);
                         }
                         else
                         {

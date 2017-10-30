@@ -20,46 +20,50 @@ namespace IngameScript
     {
         public class ChatModule
         {
-            const short lcdLenght = 20;
+            //Variables for LCD state
+            enum Window { MAIN, SELECTION, REQUEST, REQDEC, CHAT};
+            short CHAT_OFFSET = (short)Window.CHAT;
 
-            enum Window { MAIN, SELECTION, REQUEST, CHAT};
-
-            Program parent;
-            Window current = Window.MAIN;
+            //Hardware regarding variables
+            ChatHandler parent;
+            Window currentState = Window.MAIN;
             List<string> knownShips = new List<string>();
-            string currentTarget = "";
-            string currentRequest = "";
-            int requesterID = 0;
-            int targetTerminalID = 0;
             IMyTextPanel window;
             short width = 50;
-            int pointer = 0;
-            int subpointer = 0;
             int ID;
 
-            public ChatModule(Program par,IMyTextPanel panel, int number)
+            //Data pair of current chat partner
+            string currentTarget = "";
+            int currentTargetID = 0;
+
+            //Data pair of requesting chat partner
+            string currentRequest = "";
+            int currentRequestID = 0;
+            
+            //Needed for indication of pointer on screen
+            int pointer = 0;
+            int subpointer = 0;
+
+            
+
+            public ChatModule(ChatHandler par,IMyTextPanel panel, int number)
             {
                 parent = par;
                 window = panel;
                 ID = number;
-                initWindow();
+                InitWindow();
                 window.CustomData = "";
-            }
-
-            public bool isEqual(int input)
-            {
-                return input == ID;
             }
 
             public void SetChatPartner()
             {
                 currentTarget = currentRequest;
-                targetTerminalID = requesterID;
-                current = Window.CHAT;
-                updateChatWindows();
+                currentTargetID = currentRequestID;
+                currentState = Window.CHAT;
+                UpdateChatWindow();
             }
 
-            public void updateShipStatus(string name, bool delete)
+            public void UpdateShipStatus(string name, bool delete)
             {
                 if (delete && knownShips.Contains(name))
                 {
@@ -76,17 +80,17 @@ namespace IngameScript
                         knownShips.Add(name);
                     }
                 }
-                if (current == Window.MAIN)
+                if (currentState == Window.MAIN)
                 {
-                    updateChatWindows();
+                    UpdateChatWindow();
                 }
                 
             }
-
-            public void addText(string mes)
+        
+            public void AddText(string mes)
             {
-                string output = "[" + currentTarget + "]: " + mes + "\n";
-                output = formatMessage(output);
+                string output = "[" + currentTarget + "]: " + mes;
+                output = FormatMessage(output);
                 string[] entry = output.Split('\n');
                 string[] lines = window.GetPublicText().Split('\n');
                 List<string> linesList = lines.ToList();
@@ -107,118 +111,142 @@ namespace IngameScript
                 {
                     window.CustomData = window.CustomData + line + "\n";
                 }
-                if (current == Window.CHAT)
+                if (currentState == Window.CHAT)
                 {
-                    updateChatWindows();
+                    UpdateChatWindow();
                 }
             }
             
-            public void run()
+            public void Run()
             {
-                if (current != Window.CHAT)
+                if (currentState != Window.CHAT)
                 {
                     return;
                 }
-                string input = getInput();
+                string input = GetInput();
                 if (input != "")
                 {
-                    string mes = "Chat/" + ID + "/" + targetTerminalID + "/" + input;
-                    parent.comHandler.SendMessage(currentTarget, mes, true);
-                    parent.Echo("Message send");
+                    string mes = "Chat/Mes/" + ID + "/" + currentTargetID + "/" + input;
+                    parent.SendMessage(currentTarget, mes);
                 }
             }
 
-            public void lockRequest(string name, int requestID)
+            public void SetRequest(string name, int requestID)
             {
-                if (current == Window.MAIN)
+                if (currentRequest == "")
                 {
-                    current = Window.REQUEST;
                     currentRequest = name;
-                    requesterID = requestID;
-                    updateChatWindows();
+                    currentRequestID = requestID;
+                    if (currentState == Window.MAIN)
+                    {
+                        currentState = Window.REQUEST;
+                        UpdateChatWindow();
+                    }
+                    
                 }
             }
 
-            public string releaseRequest(string name)
+            public void ConnectionDeclined(string requested)
             {
-                if (current == Window.REQUEST && currentRequest == name)
+                if (requested == currentTarget)
                 {
-                    current = Window.MAIN;
-                    string lastRequest = currentRequest;
-                    currentRequest = "";
-                    requesterID = 0;
-                    updateChatWindows();
-                    return lastRequest;
+                    currentState = Window.REQDEC;
+                    UpdateChatWindow();
                 }
-                return "";
+            }
+
+            public void CheckArgument(string argument)
+            {
+                if (currentState == Window.REQDEC)
+                {
+                    currentState = Window.MAIN;
+                    window.CustomData = "";
+                    UpdateChatWindow();
+                    return;
+                }
+                switch (argument)
+                {
+                    case "Down":
+                        if (currentState == Window.MAIN && pointer < knownShips.Count - 1)
+                        {
+                            pointer++;
+                        }
+                        if (currentState == Window.SELECTION && subpointer < Enum.GetNames(typeof(Window)).Length - CHAT_OFFSET)
+                        {
+                            subpointer++;
+                        }
+                        if (currentState == Window.REQUEST && subpointer < Enum.GetNames(typeof(Request_Options)).Length - 1)
+                        {
+                            subpointer++;
+                        }
+                        break;
+                    case "Up":
+                        if (currentState == Window.MAIN && pointer > 0)
+                        {
+                            pointer--;
+                        }
+                        if (currentState == Window.SELECTION && subpointer > 0)
+                        {
+                            subpointer--;
+                        }
+                        if (currentState == Window.REQUEST && subpointer > 0)
+                        {
+                            subpointer--;
+                        }
+                        break;
+                    case "Confirm":
+                        if (currentState == Window.MAIN && knownShips.Count() > 0)
+                        {
+                            currentState = Window.SELECTION;
+                            if (Enum.GetNames(typeof(Window)).Length == (CHAT_OFFSET - 1))
+                            {
+                                currentState = Window.CHAT;
+                            }
+                            currentTarget = knownShips[pointer];
+                        }
+                        else if (currentState == Window.SELECTION)
+                        {
+                            currentState = (Window)(CHAT_OFFSET + subpointer);
+                            currentTarget = knownShips[pointer];
+                        }
+                        else if (currentState == Window.REQUEST)
+                        {
+                            parent.HandleRequest(ID, currentTargetID, (Request_Options)subpointer, currentRequest);
+                        }
+
+                        break;
+                    case "Abort":
+                        currentState = Window.MAIN;
+                        window.CustomData = "";
+                        subpointer = 0;
+                        break;
+                    default:
+                        currentState = Window.MAIN;
+                        subpointer = 0;
+                        break;
+                }
+                UpdateChatWindow();
+            }
+
+            public void MessageDropped(int targetID)
+            {
+                if (currentTargetID == targetID)
+                {
+                    //TODO think of better way to do this
+                    AddText("Last own message could not be send! Maybe target is out of range or destroyed");
+                }
             }
             
-            string getInput()
+            void UpdateChatWindow()
             {
-                List<string> lines = window.GetPublicText().Split('\n').ToList();
-                string output = "";
-                if (lines[lines.Count - 1] == "")
-                {
-                    short counter = (short)(lines.Count - 1);
-                    while (!lines[counter].StartsWith("[You]"))
-                    {
-                        parent.Echo(lines[counter]);
-                        counter--;
-                        output = lines[counter] + " " + output;
-                    }
-                    lines[lines.Count - 1] = "[You]: ";
-                    window.CustomData = "";
-                    //Rewrite custom data with new content
-                    foreach (string line in lines)
-                    {
-                        if (line != "[You]: ")
-                        {
-                            window.CustomData = window.CustomData + line + "\n";
-                        }
-                        else
-                        {
-                            window.CustomData = window.CustomData + line;
-                        }
-                    }
-                    updateChatWindows();
-                    /*
-                }*/
-                }
-                else if(lines[lines.Count - 1] != "[You]: ")
-                {
-                    string input = lines[lines.Count - 1];
-                    input = formatMessage(input);
-                    string[] inputLines = input.Split('\n');
-                    if (inputLines.Length != 1)
-                    {
-                        lines[lines.Count - 1] = inputLines[0];
-                        lines.Add(inputLines[1]);
-                        window.CustomData = "";
-                        foreach (string line in lines)
-                        {
-                            if (line != lines[lines.Count - 1])
-                            {
-                                window.CustomData = window.CustomData + line + "\n";
-                            }
-                            else
-                            {
-                                window.CustomData = window.CustomData + line;
-                            }
-                        }
-                        
-                        updateChatWindows();
-                    }
-                }
-                return output;
-            }
-
-            void updateChatWindows()
-            {
-                switch (current)
+                switch (currentState)
                 {
                     case Window.MAIN:
                         window.WritePublicText("Com Chat V1.0 LCD: " + ID + "\n\nList of known Ships in Com Distance :\n");
-                        for (int i = 0; i < lcdLenght + 4 && i < knownShips.Count; i++)
+                        //24 is the maximum amount of lines which can be show correctly 
+                        int startPoint = pointer <= 24 ? 0 : (pointer - 23);
+                        int endPoint = startPoint == 0 ? 24 : pointer + 1;
+                        for (int i = startPoint; i < endPoint && i < knownShips.Count; i++)
                         {
                             if (i != pointer)
                             {
@@ -240,9 +268,10 @@ namespace IngameScript
                         {
                             window.WritePublicText("");
                             string[] text = window.CustomData.Split('\n');
+                            int start= text.Length <= 24 ? 0 : text.Length - 24;
                             foreach (string line in text)
                             {
-                                if (line != text[text.Length -1])
+                                if (line != text[text.Length - 1])
                                 {
                                     window.WritePublicText(line + "\n", true);
                                 }
@@ -250,7 +279,7 @@ namespace IngameScript
                                 {
                                     window.WritePublicText(line, true);
                                 }
-                                
+
                             }
                         }
                         break;
@@ -286,76 +315,112 @@ namespace IngameScript
                             }
                         }
                         break;
+                    case Window.REQDEC:
+                        window.WritePublicText("Com Chat V1.0 LCD: " + ID + "\n\n");
+                        window.WritePublicText("Connection target " + currentTarget + " has declined the connection.\n", true);
+                        window.WritePublicText("Press any button to continue.\n", true);
+                        break;
                 }
             }
 
-            public void checkArgument(string argument)
+            void InitWindow()
             {
-                switch (argument)
+                window.ShowPublicTextOnScreen();
+                window.WritePublicTitle("Com Chat V1.0");
+                window.WritePublicText("Com Chat V1.0 \n\nList of known Ships in Com Distance :");
+                string info = window.DetailedInfo.Split('\n')[0];
+                if (info != "Type: Wide LCD panel")
                 {
-                    case "Down":
-                        if (current == Window.MAIN && pointer < knownShips.Count - 1)
-                        {
-                            pointer++;
-                        }
-                        if (current == Window.SELECTION && subpointer < Enum.GetNames(typeof(Window)).Length - 3)
-                        {
-                            subpointer++;
-                        }
-                        if (current == Window.REQUEST && subpointer < Enum.GetNames(typeof(Request_Options)).Length - 1)
-                        {
-                            subpointer++;
-                        }
-                        break;
-                    case "Up":
-                        if (current == Window.MAIN && pointer > 0)
-                        {
-                            pointer--;
-                        }
-                        if (current == Window.SELECTION && subpointer > 0)
-                        {
-                            subpointer--;
-                        }
-                        if (current == Window.REQUEST && subpointer > 0)
-                        {
-                            subpointer--;
-                        }
-                        break;
-                    case "Confirm":
-                        if (current == Window.MAIN && knownShips.Count() > 0)
-                        {
-                            current = Window.SELECTION;
-                            if (Enum.GetNames(typeof(Window)).Length == 4)
-                            {
-                                current = (Window)3;
-                            }
-                            currentTarget = knownShips[pointer];
-                        }
-                        else if (current == Window.SELECTION)
-                        {
-                            current = (Window)(3 + subpointer);
-                            currentTarget = knownShips[pointer];
-                        }
-                        else if (current == Window.REQUEST)
-                        {
-                            parent.HandleRequest(ID, (Request_Options)subpointer, currentRequest);
-                        }
-                        
-                        break;
-                    case "Abort":
-                        current = Window.MAIN;
-                        window.CustomData = "";
-                        subpointer = 0;
-                        break;
-                    default:
-                        current = Window.MAIN;
-                        subpointer = 0;
-                        break;
+                    width = 30;
                 }
-                updateChatWindows();
+                knownShips.Add("Ship 1");
+                knownShips.Add("Ship 2");
+                knownShips.Add("Ship 3");
+                knownShips.Add("Ship 4");
+                UpdateChatWindow();
+            }
+            
+            public bool RemoveRequest(string name)
+            {
+                if (currentRequest == name)
+                {
+                    string lastRequest = currentRequest;
+                    currentRequest = "";
+                    currentRequestID = 0;
+                    if (currentState == Window.REQUEST)
+                    {
+                        currentState = Window.MAIN;
+                        UpdateChatWindow();
+                    }
+                    return true;
+                }
+                return false;
             }
 
-            string formatMessage(string message)
+            public bool IsEqual(int input)
+            {
+                return input == ID;
+            }
+
+            string GetInput()
+            {
+                List<string> lines = window.GetPublicText().Split('\n').ToList();
+                string output = "";
+                if (lines[lines.Count - 1] == "")
+                {
+                    short counter = (short)(lines.Count - 1);
+                    while (!lines[counter].StartsWith("[You]"))
+                    {
+                        counter--;
+                        output = lines[counter] + " " + output;
+                    }
+                    lines[lines.Count - 1] = "[You]: ";
+                    window.CustomData = "";
+                    //Rewrite custom data with new content
+                    foreach (string line in lines)
+                    {
+                        if (line != "[You]: ")
+                        {
+                            window.CustomData = window.CustomData + line + "\n";
+                        }
+                        else
+                        {
+                            window.CustomData = window.CustomData + line;
+                        }
+                    }
+                    UpdateChatWindow();
+                    /*
+                }*/
+                }
+                else if (lines[lines.Count - 1] != "[You]: ")
+                {
+                    string input = lines[lines.Count - 1];
+                    input = FormatMessage(input);
+                    string[] inputLines = input.Split('\n');
+                    if (inputLines.Length != 1)
+                    {
+                        lines[lines.Count - 1] = inputLines[0];
+                        lines.Add(inputLines[1]);
+                        window.CustomData = "";
+                        foreach (string line in lines)
+                        {
+                            if (line != lines[lines.Count - 1])
+                            {
+                                window.CustomData = window.CustomData + line + "\n";
+                            }
+                            else
+                            {
+                                window.CustomData = window.CustomData + line;
+                            }
+                        }
+
+                        UpdateChatWindow();
+                    }
+                }
+                return output;
+            }
+
+            string FormatMessage(string message)
             {
                 string[] words = message.Split(' ', '\n');
                 string result = "";
@@ -374,23 +439,6 @@ namespace IngameScript
                     }
                 }
                 return result;
-            }
-
-            void initWindow()
-            {
-                window.ShowPublicTextOnScreen();
-                window.WritePublicTitle("Com Chat V1.0");
-                window.WritePublicText("Com Chat V1.0 \n\nList of known Ships in Com Distance :");
-                string info = window.DetailedInfo.Split('\n')[0];
-                if (info != "Type: Wide LCD panel")
-                {
-                    width = 30;
-                }
-                knownShips.Add("Ship 1");
-                knownShips.Add("Ship 2");
-                knownShips.Add("Ship 3");
-                knownShips.Add("Ship 4");
-                updateChatWindows();
             }
         }
     }

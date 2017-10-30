@@ -42,7 +42,8 @@ namespace IngameScript
         public enum Request_Options { ACCEPT, DECLINE, DECLINE_ALL }
 
         ComModule comHandler;
-        Dictionary<int, ChatModule> chats = new Dictionary<int, ChatModule>();
+        ChatHandler chathandler;
+        
         IMyTerminalBlock output;
         IMyRadioAntenna antenna;
         bool outputIsTextPanel;
@@ -52,7 +53,6 @@ namespace IngameScript
 
         public Program()
         {
-            List<IMyTextPanel> chat_windows = new List<IMyTextPanel>();
             antenna = GridTerminalSystem.GetBlockWithName(ANTENNA_NAME) as IMyRadioAntenna;
             if(antenna != null)
             {
@@ -106,15 +106,8 @@ namespace IngameScript
             }
             if (CHAT_MODE)
             {
-                GridTerminalSystem.GetBlocksOfType(chat_windows, x => x.CustomName.Contains(CHAT_NAME));
-                int id = 1;
-                foreach (IMyTextPanel lcd in chat_windows)
-                {
-                    chats.Add(id, new ChatModule(this, lcd, id));
-                    id++;
-                }
+                chathandler = new ChatHandler(this, CHAT_NAME);
             }
-            
             if (OWN_NAME == "")
             {
                 OWN_NAME = Me.CubeGrid.CustomName;
@@ -131,55 +124,41 @@ namespace IngameScript
             {
                 return;
             }
+
             if (argument.StartsWith("CHAT"))
             {
-                string[] parts = argument.Split('_');
-                short id = short.Parse(parts[1]);
-                chats[id].checkArgument(parts[2]);
+                chathandler.HandleArgument(argument);
             }
+
             if (argument.StartsWith("COM"))
             {
                 string input = comHandler.ProcessMessage(argument);
                 if (input != "")
                 {
                     printOut(input);
-                    if (input.StartsWith("CHAT_Chat"))
+                    if (input.StartsWith("Chat/"))
                     {
-                        string[] inputParts = input.Split('/');
-                        int id = int.Parse(inputParts[2]);
-                        printOut("Recieved Id is " + id);
-                        if (id != 0)
-                        {
-                            chats[id].addText(inputParts[3]);
-                        }
-                        else
-                        {
-                            printOut("Search Chat window");
-                            string sender = argument.Split('_')[4];
-                            foreach (ChatModule cm in chats.Values.ToList())
-                            {
-                                cm.lockRequest(sender, int.Parse(inputParts[1]));
-                            }
-                        }
+                        string sender = argument.Split('_')[4];
+                        chathandler.HandleMessage(input, sender);
                     }
                 }
             }
-            if (argument.StartsWith("Send"))
+
+            if (argument.StartsWith("SEND"))
             {
                 string[] parts = argument.Split('_');
                 comHandler.SendMessage(parts[1], parts[2], false);
             }
+
             if (argument == "HEY")
             {
                 comHandler.SendHey();
             }
+
             if (chat_counter >= 5)
             {
                 chat_counter = 0;
-                foreach (ChatModule chat in chats.Values.ToList())
-                {
-                    chat.run();
-                }
+                chathandler.run();
             }
             else
             {
@@ -187,6 +166,11 @@ namespace IngameScript
             }
             
             comHandler.Run();
+        }
+
+        public void SendMessage(string target, string message)
+        {
+            comHandler.SendMessage(target, message, true);
         }
 
         public void printOut(string mes)
@@ -203,45 +187,6 @@ namespace IngameScript
             else
             {
                 output.CustomData = output.CustomData + mes + "\n";
-            }
-        }
-
-        public void updateShip(string name, bool delete)
-        {
-            foreach (ChatModule cm in chats.Values.ToList())
-            {
-                cm.updateShipStatus(name, delete);
-            }
-        }
-
-        public void messageDropped(string message)
-        {
-
-        }
-
-        public void HandleRequest(int ID, Request_Options option, string requester)
-        {
-            switch (option)
-            {
-                case Request_Options.ACCEPT:
-                    foreach (ChatModule cm in chats.Values.ToList())
-                    {
-                        cm.releaseRequest(requester);
-                        if (cm.isEqual(ID))
-                        {
-                            cm.SetChatPartner();
-                        }
-                    }
-                    break;
-                case Request_Options.DECLINE:
-                    chats[ID].releaseRequest(requester);
-                    break;
-                case Request_Options.DECLINE_ALL:
-                    foreach (ChatModule cm in chats.Values.ToList())
-                    {
-                        cm.releaseRequest(requester);
-                    }
-                    break;
             }
         }
     }
