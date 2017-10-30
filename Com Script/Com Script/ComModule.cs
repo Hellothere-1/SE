@@ -361,7 +361,7 @@ namespace IngameScript
                     }
                     if ((stat & Status.MesNotSend) == Status.MesNotSend)
                     {
-                        parent.chathandler.messageDropped(responceList[name].getLastDropped());
+                        parent.chathandler.MessageDropped(responceList[name].getLastDropped());
                     }
                 }
                 if (prioList.Count != 0)

@@ -21,8 +21,6 @@ namespace IngameScript
 
         public class ChatHandler
         {
-            
-
             struct RequestSave
             {
                 public string targetName;
@@ -30,7 +28,7 @@ namespace IngameScript
                 public int requestsOpen;
                 public List<string> messages;
 
-                public bool isEqual(int ID)
+                public bool IsEqual(int ID)
                 {
                     return (ID == targetID);
                 }
@@ -38,10 +36,11 @@ namespace IngameScript
 
             public Program parent;
             Dictionary<int, ChatModule> chatWindows = new Dictionary<int, ChatModule>();
-            //No list in dict, no time tracked, make a list out of it...
-            Dictionary<string, List<RequestSave>> requests = new Dictionary<string, List<RequestSave>>();
             List<string> knownShips = new List<string>();
-
+            List<RequestSave> requests = new List<RequestSave>();
+            Dictionary<string, int[]> lookUpTable = new Dictionary<string, int[]>();
+            
+            //SCRIPTINPUT (FS)
             public ChatHandler(Program par, string CHAT_NAME)
             {
                 parent = par;
@@ -55,104 +54,142 @@ namespace IngameScript
                 }
             }
 
-            public void HandleRequest(int ownID, int targetID, Request_Options option, string requester)
+            //SCRIPTINPUT (FS)
+            public void HandleRequest(int ownID, int requesterID, Request_Options option, string requester)
             {
-                RequestSave current = getRequestFromID(requester, targetID);
-                if (current.targetID == -1)
+                if (!lookUpTable.Keys.Contains(requester))
                 {
-                    //Did not found the correct request, bad code maybe?
-                    return;
+                    parent.printOut("ERROR: 0X006 @ CHAT_HANDLER/HANDLE_REQUEST");
+                    throw new Exception("ERROR: 0X006 @ CHAT_HANDLER/HANDLE_REQUEST");
                 }
+                int position = GetRequestFromID(requester, requesterID);
+                if (position == -1)
+                {
+                    parent.printOut("ERROR: 0X0001 @ CHAT_HANDLER/HANDLE_REQUEST");
+                    throw new Exception("ERROR: 0X0001 @ CHAT_HANDLER/HANDLE_REQUEST");
+                }
+                RequestSave current = requests[position];
                 switch (option)
                 {
                     case Request_Options.ACCEPT:
                         foreach (ChatModule cm in chatWindows.Values.ToList())
                         {
-                            //TODO assign new request from list
-                            cm.RemoveRequest(requester);
                             if (cm.IsEqual(ownID))
                             {
-                                cm.SetChatPartner();
+                                if (current.requestsOpen > 0)
+                                {
+                                    cm.SetChatPartner();
+                                }
+                                
                             }
+                            AssignNext(cm, position, requester);
                         }
-                        requests[requester].Remove(current);
+                        current.requestsOpen = 0;
                         break;
                     case Request_Options.DECLINE:
-                        chatWindows[ownID].RemoveRequest(requester);
+                        AssignNext(chatWindows[ownID], position, requester);
                         current.requestsOpen--;
                         break;
                     case Request_Options.DECLINE_ALL:
                         foreach (ChatModule cm in chatWindows.Values.ToList())
                         {
-                            cm.RemoveRequest(requester);
+                            AssignNext(cm, position, requester);
                         }
                         current.requestsOpen = 0;
                         break;
                 }
             }
 
+            //SCRIPTINPUT (FS)
             public void HandleMessage(string message, string sender)
             {
-                string tag = message.Split('/')[1];
-                if (tag == "ReqDec")
+                string[] messageParts = message.Split('/');
+                if (messageParts.Length < 3)
                 {
-                    int id = int.Parse(message.Split('/')[2]);
-                    chatWindows[id].ConnectionDeclined(sender);
+                    parent.printOut("ERROR: 0X007 @ CHAT_HANDLER/HANDLE_MESSAGE");
+                    throw new Exception("ERROR: 0X007 @ CHAT_HANDLER/HANDLE_MESSAGE");
+                }
+                if (messageParts[1] == "ReqDec")
+                {
+                    int id;
+                    try
+                    {
+                        id = int.Parse(messageParts[2]);
+                        chatWindows[id].ConnectionDeclined(sender);
+                    }
+                    catch (Exception)
+                    {
+                        parent.printOut("Bad message recieved: " + message);
+                        return;
+                    }
                     return;
                 }
-
-                int[] Ids = extractID(message);
-                if (Ids[1] == 0)
+                try
                 {
-                    bool found = false;
-                    foreach (string name in requests.Keys.ToList())
-                    {
-                        foreach (RequestSave rs in requests[name])
-                        {
-                            if (rs.isEqual(Ids[2]))
-                            {
-                                found = true;
-                                rs.messages.Add(message);
-                                break;
-                            }
-                        }
-                    }
-                    if (!found)
+                    int[] Ids = ExtractID(message);
+                    if (Ids[1] == 0)
                     {
                         RequestSave rs = new RequestSave();
                         rs.targetName = sender;
-                        rs.targetID = Ids[2];
+                        rs.targetID = Ids[0];
                         rs.requestsOpen = chatWindows.Count;
                         rs.messages.Add(message);
-                        if (!requests.ContainsKey(sender))
+                        requests.Add(rs);
+                        if (!lookUpTable.Keys.Contains(sender))
                         {
-                            requests.Add(sender, new List<RequestSave>());
+                            int[] temp = { requests.Count - 1 };
+                            lookUpTable.Add(sender, temp);
                         }
-                        requests[sender].Add(rs);
+                        else
+                        {
+                            int[] save = lookUpTable[sender];
+                            int[] copy = new int[save.Length];
+                            for (int i = 0; i < save.Length; i++)
+                            {
+                                copy[i] = save[i];
+                            }
+                            copy[copy.Length - 1] = Ids[0];
+                        }
+                        foreach (ChatModule cm in chatWindows.Values.ToList())
+                        {
+                            cm.SetRequest(sender, Ids[0]);
+                        }
                     }
-                    foreach (ChatModule cm in chatWindows.Values.ToList())
+                    else
                     {
-                        cm.SetRequest(sender, Ids[2]);
+                        chatWindows[Ids[1]].AddText(message);
                     }
                 }
-                else
+                catch (Exception e)
                 {
-                    chatWindows[Ids[0]].AddText(message);
+                    parent.printOut(e.Message);
+                    parent.printOut("ERROR: 0X008 @ CHAT_HANDLER/HANDLE_MESSAGE");
+                    throw new Exception("ERROR: 0X008 @ CHAT_HANDLER/HANDLE_MESSAGE");
                 }
             }
 
+            //USERINPUT (FS)
             public void HandleArgument(string message)
             {
-                string[] parts = message.Split('_');
-                int ID = int.Parse(parts[1]);
-                chatWindows[ID].CheckArgument(parts[2]);
+                try
+                {
+                    string[] parts = message.Split('_');
+                    int ID = int.Parse(parts[1]);
+                    chatWindows[ID].CheckArgument(parts[2]);
+                }
+                catch (Exception)
+                {
+                    parent.printOut("Bad argument recieved: " + message);
+                }
             }
 
+            //SCRIPTINPUT (FS)
             public void SendMessage(string target, string message)
             {
                 parent.SendMessage(target, message);
             }
 
+            //SCRIPTINPUT (FS)
             public void updateShip(string name, bool delete)
             {
                 foreach (ChatModule cm in chatWindows.Values.ToList())
@@ -172,65 +209,132 @@ namespace IngameScript
                 }
             }
 
-            public void messageDropped(Message message)
+            //SCRIPTINPUT (FS)
+            public void MessageDropped(Message message)
             {
                 string mes = message.payload;
-                int[] ID = extractID(mes);
+                int[] ID = ExtractID(mes);
                 chatWindows[ID[0]].MessageDropped(ID[1]);
             }
 
-            public List<string> getKnownShips()
+            //SCRIPTINPUT (FS)
+            void AssignNext(ChatModule cm, int position, string requester)
+            {
+                if (cm.RemoveRequest(requester))
+                {
+                    if (position + 1 < requests.Count)
+                    {
+                        cm.SetRequest(requests[position + 1].targetName, requests[position + 1].targetID);
+                    }
+                }
+            }
+
+            //NO INPUT (FS)
+            public List<string> GetKnownShips()
             {
                 return knownShips;
             }
 
-            public void run()
+            //NO INPUT (FS)
+            public void Run()
             {
                 foreach (ChatModule chat in chatWindows.Values.ToList())
                 {
                     chat.Run();
                 }
-                foreach (string name in requests.Keys.ToList())
+                try
                 {
-                    foreach (RequestSave rs in requests[name])
+                    for (int i = 0; i < requests.Count; i++)
                     {
-                        if (rs.requestsOpen <= 0)
+                        if (requests[i].requestsOpen <= 0)
                         {
-                            requests[name].Remove(rs);
-                            string mes = "Chat/ReqDec/" + rs.targetID;
-                            parent.comHandler.SendMessage(rs.targetName, mes, true);
+                            string mes = "Chat/ReqDec/" + requests[i].targetID;
+                            parent.comHandler.SendMessage(requests[i].targetName, mes, true);
+                            RemoveRequestFromList(i);
                         }
                     }
-                    if (requests[name].Count <= 0)
-                    {
-                        requests.Remove(name);
-                    }
+                }
+                catch (Exception)
+                {
+                    //If the code stucks here, change requests.Count to a dynamic variable which decreases when something is removed
+                    parent.printOut("ERROR: 0X004 @ CHAT_HANDLER/RUN");
+                    throw new Exception("ERROR: 0X004 @ CHAT_HANDLER/RUN");
                 }
             }
 
-            RequestSave getRequestFromID(string target, int requestID)
+            //SCRIPTINPUT (FS)
+            int GetRequestFromID(string target, int requestID)
             {
-                RequestSave result = new RequestSave();
-                result.targetID = -1;
-                List<RequestSave> list = requests[target];
-                foreach (RequestSave rs in list)
+                int[] possiblePositions = lookUpTable[target];
+                int position = -1;
+                foreach (int pos in possiblePositions)
                 {
-                    if (rs.isEqual(requestID))
+                    if (requests[pos].IsEqual(requestID))
                     {
-                        result = rs;
+                        position = pos;
                         break;
                     }
                 }
-                return result;
+                return position;
             }
 
-            int[] extractID(string mes)
+            //USERINPUT (FS)
+            int[] ExtractID(string mes)
             {
-                string[] parts = mes.Split('/');
-                int[] output = { 0, 0 };
-                output[0] = int.Parse(parts[2]);
-                output[1] = int.Parse(parts[3]);
-                return output;
+                try
+                {
+                    string[] parts = mes.Split('/');
+                    int[] output = { 0, 0 };
+                    output[0] = int.Parse(parts[2]);
+                    output[1] = int.Parse(parts[3]);
+                    return output;
+                }
+                catch
+                {
+                    parent.printOut("Bad IDs recieved: " + mes);
+                    throw new Exception("Bad IDs recieved: " + mes);
+                }
+            }
+
+            //SCRIPTINPUT (FS)
+            void RemoveRequestFromList(int position)
+            {
+                RequestSave toDelete = requests[position];
+                int[] cPos = lookUpTable[toDelete.targetName];
+                if (cPos.Length == 1)
+                {
+                    if (cPos[0] != toDelete.targetID)
+                    {
+                        parent.printOut("ERROR: 0X002 @ CHAT_HANDLER/REMOVE_REQUEST");
+                        throw new Exception("ERROR: 0X002 @ CHAT_HANDLER/REMOVE_REQUEST");
+                    }
+                    lookUpTable.Remove(toDelete.targetName);
+                    requests.RemoveAt(position);
+                }
+                else
+                {
+                    int[] newLookup = new int[lookUpTable[toDelete.targetName].Length - 1];
+                    short counter = 0;
+                    try
+                    {
+                        foreach (int i in cPos)
+                        {
+                            if (i != toDelete.targetID)
+                            {
+                                newLookup[counter] = i;
+                                counter++;
+                            }
+                        }
+                    }
+                    catch (Exception)
+                    {
+                        //ID not found => tried to copy all n entries in n-1 array => exception => ??? => profit
+                        parent.printOut("ERROR: 0X003 @ CHAT_HANDLER/REMOVE_REQUEST");
+                        throw new Exception("ERROR: 0X003 @ CHAT_HANDLER/REMOVE_REQUEST");
+                    }
+                    lookUpTable[toDelete.targetName] = newLookup;
+                    requests.RemoveAt(position);
+                }
             }
         }
     }

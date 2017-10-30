@@ -158,7 +158,7 @@ namespace IngameScript
             if (chat_counter >= 5)
             {
                 chat_counter = 0;
-                chathandler.run();
+                chathandler.Run();
             }
             else
             {

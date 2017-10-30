@@ -119,8 +119,16 @@ namespace IngameScript
             
             public void Run()
             {
-                if (currentState != Window.CHAT)
+                if (currentState != Window.CHAT && currentState != Window.MAIN)
                 {
+                    return;
+                }
+                if(currentState == Window.MAIN)
+                {
+                    if (currentRequest != "")
+                    {
+                        currentState = Window.REQUEST;
+                    }
                     return;
                 }
                 string input = GetInput();
@@ -211,7 +219,7 @@ namespace IngameScript
                         }
                         else if (currentState == Window.REQUEST)
                         {
-                            parent.HandleRequest(ID, currentTargetID, (Request_Options)subpointer, currentRequest);
+                            parent.HandleRequest(ID, currentRequestID, (Request_Options)subpointer, currentRequest);
                         }
 
                         break;
@@ -345,7 +353,6 @@ namespace IngameScript
             {
                 if (currentRequest == name)
                 {
-                    string lastRequest = currentRequest;
                     currentRequest = "";
                     currentRequestID = 0;
                     if (currentState == Window.REQUEST)
