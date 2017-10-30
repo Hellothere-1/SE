@@ -155,7 +155,7 @@ namespace IngameScript
                             cm.SetRequest(sender, Ids[0]);
                         }
                     }
-                    else
+                    else if(Ids[0] != -1)
                     {
                         chatWindows[Ids[1]].AddText(message);
                     }
@@ -292,7 +292,7 @@ namespace IngameScript
                 catch
                 {
                     parent.printOut("Bad IDs recieved: " + mes);
-                    throw new Exception("Bad IDs recieved: " + mes);
+                    return new int[] {-1, -1 };
                 }
             }
 

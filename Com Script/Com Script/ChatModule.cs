@@ -44,8 +44,7 @@ namespace IngameScript
             int pointer = 0;
             int subpointer = 0;
 
-            
-
+            //SCRIPTINPUT (FS)
             public ChatModule(ChatHandler par,IMyTextPanel panel, int number)
             {
                 parent = par;
@@ -55,6 +54,7 @@ namespace IngameScript
                 window.CustomData = "";
             }
 
+            //NO INPUT (FS)
             public void SetChatPartner()
             {
                 currentTarget = currentRequest;
@@ -63,6 +63,7 @@ namespace IngameScript
                 UpdateChatWindow();
             }
 
+            //SCRIPTINPUT (FS)
             public void UpdateShipStatus(string name, bool delete)
             {
                 if (delete && knownShips.Contains(name))
@@ -87,6 +88,7 @@ namespace IngameScript
                 
             }
         
+            //USERINPUT (FS/UNTESTED)
             public void AddText(string mes)
             {
                 string output = "[" + currentTarget + "]: " + mes;
@@ -117,6 +119,7 @@ namespace IngameScript
                 }
             }
             
+            //NO INPUT (FS)
             public void Run()
             {
                 if (currentState != Window.CHAT && currentState != Window.MAIN)
@@ -139,6 +142,7 @@ namespace IngameScript
                 }
             }
 
+            //SCRIPTINPUT (FS)
             public void SetRequest(string name, int requestID)
             {
                 if (currentRequest == "")
@@ -154,6 +158,8 @@ namespace IngameScript
                 }
             }
 
+            //SCRIPTINPUT (FS)
+            //TODO next assigned after connection declined??
             public void ConnectionDeclined(string requested)
             {
                 if (requested == currentTarget)
@@ -163,6 +169,7 @@ namespace IngameScript
                 }
             }
 
+            //USERINPUT (FS)
             public void CheckArgument(string argument)
             {
                 if (currentState == Window.REQDEC)
@@ -229,13 +236,14 @@ namespace IngameScript
                         subpointer = 0;
                         break;
                     default:
-                        currentState = Window.MAIN;
-                        subpointer = 0;
+                        //TODO improve this structure
+                        parent.parent.printOut("Bad command at LCD: " + ID + " , was : " + argument);
                         break;
                 }
                 UpdateChatWindow();
             }
 
+            //SCRIPTINPUT (FS)
             public void MessageDropped(int targetID)
             {
                 if (currentTargetID == targetID)
@@ -245,6 +253,7 @@ namespace IngameScript
                 }
             }
             
+            //NO INPUT (FS)
             void UpdateChatWindow()
             {
                 switch (currentState)
@@ -332,6 +341,7 @@ namespace IngameScript
                 }
             }
 
+            //SCRIPTINPUT (FS)
             void InitWindow()
             {
                 window.ShowPublicTextOnScreen();
@@ -349,6 +359,7 @@ namespace IngameScript
                 UpdateChatWindow();
             }
             
+            //SCRIPTINPUT (FS)
             public bool RemoveRequest(string name)
             {
                 if (currentRequest == name)
@@ -365,11 +376,13 @@ namespace IngameScript
                 return false;
             }
 
+            //SCRIPTINPUT (FS)
             public bool IsEqual(int input)
             {
                 return input == ID;
             }
 
+            //NO INPUT (FS)
             string GetInput()
             {
                 List<string> lines = window.GetPublicText().Split('\n').ToList();
@@ -397,8 +410,6 @@ namespace IngameScript
                         }
                     }
                     UpdateChatWindow();
-                    /*
-                }*/
                 }
                 else if (lines[lines.Count - 1] != "[You]: ")
                 {
@@ -428,6 +439,7 @@ namespace IngameScript
                 return output;
             }
 
+            //SCRIPTINPUT (FS)
             string FormatMessage(string message)
             {
                 string[] words = message.Split(' ', '\n');
