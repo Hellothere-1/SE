@@ -369,7 +369,7 @@ namespace IngameScript
                 }
                 if (mes != null && antenna.IsBroadcasting && antennaCounter > 3 && antenna.TransmitMessage(mes.ToString(ownName), mes.targetGroup))
                 {
-                    parent.printOut("Message send : " + mes.payload);
+                    //parent.printOut("Message send : " + mes.ToString());
                     if ((mes.tag == Tag.MES || mes.tag == Tag.CHAT) && !priolist)
                     {
                         current.increasePointer();
@@ -443,7 +443,7 @@ namespace IngameScript
                                 parent.chathandler.updateShip(parts[2], false);
                             }
                             knownContacts[parts[2]] = 0;
-                            parent.printOut("HEY from " + parts[2] + " recieved");
+                            //parent.printOut("HEY from " + parts[2] + " recieved");
                             break;
                     }
                 }

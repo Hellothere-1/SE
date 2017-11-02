@@ -213,7 +213,7 @@ namespace IngameScript
                         if (currentState == Window.MAIN && knownShips.Count() > 0)
                         {
                             currentState = Window.SELECTION;
-                            if (Enum.GetNames(typeof(Window)).Length == (CHAT_OFFSET - 1))
+                            if (Enum.GetNames(typeof(Window)).Length == (CHAT_OFFSET + 1))
                             {
                                 currentState = Window.CHAT;
                             }
@@ -288,6 +288,7 @@ namespace IngameScript
                             string[] save = new string[24];
                             int start = text.Length <= 24 ? 0 : text.Length - 24;
                             text.CopyTo(save, start);
+                            parent.parent.printOut("A");
                             foreach (string line in save)
                             {
                                 if (line != save[save.Length - 1])
@@ -300,15 +301,16 @@ namespace IngameScript
                                 }
 
                             }
+                            parent.parent.printOut("B");
                         }
                         break;
                     case Window.SELECTION:
                         window.WritePublicText("Com Chat V1.0 LCD: " + ID + "\n\n");
                         string option = knownShips[pointer];
                         window.WritePublicText("        " + option + "\n", true);
-                        for (int i = 3; i < Enum.GetNames(typeof(Window)).Length; i++)
+                        for (int i = CHAT_OFFSET; i < Enum.GetNames(typeof(Window)).Length; i++)
                         {
-                            if (subpointer != i - 3)
+                            if (subpointer != i - CHAT_OFFSET)
                             {
                                 window.WritePublicText("                " + (Window)i + "\n", true);
                             }
@@ -385,45 +387,24 @@ namespace IngameScript
             //NO INPUT (FS)
             string GetInput()
             {
-                List<string> lines = window.GetPublicText().Split('\n').ToList();
-                string output = "";
-                if (lines[lines.Count - 1] == "")
+                try
                 {
-                    short counter = (short)(lines.Count - 1);
-                    while (!lines[counter].StartsWith("[You]"))
+                    List<string> lines = window.GetPublicText().Split('\n').ToList();
+                    string output = "";
+                    if (lines[lines.Count - 1] == "")
                     {
-                        counter--;
-                        output = lines[counter] + " " + output;
-                    }
-                    lines[lines.Count - 1] = "[You]: ";
-                    window.CustomData = "";
-                    //Rewrite custom data with new content
-                    foreach (string line in lines)
-                    {
-                        if (line != "[You]: ")
+                        short counter = (short)(lines.Count - 1);
+                        while (!lines[counter].StartsWith("[You]"))
                         {
-                            window.CustomData = window.CustomData + line + "\n";
+                            counter--;
+                            output = lines[counter] + " " + output;
                         }
-                        else
-                        {
-                            window.CustomData = window.CustomData + line;
-                        }
-                    }
-                    UpdateChatWindow();
-                }
-                else if (lines[lines.Count - 1] != "[You]: ")
-                {
-                    string input = lines[lines.Count - 1];
-                    input = FormatMessage(input);
-                    string[] inputLines = input.Split('\n');
-                    if (inputLines.Length != 1)
-                    {
-                        lines[lines.Count - 1] = inputLines[0];
-                        lines.Add(inputLines[1]);
+                        lines[lines.Count - 1] = "[You]: ";
                         window.CustomData = "";
+                        //Rewrite custom data with new content
                         foreach (string line in lines)
                         {
-                            if (line != lines[lines.Count - 1])
+                            if (line != "[You]: ")
                             {
                                 window.CustomData = window.CustomData + line + "\n";
                             }
@@ -432,11 +413,41 @@ namespace IngameScript
                                 window.CustomData = window.CustomData + line;
                             }
                         }
-
+                        parent.parent.printOut("Test");
                         UpdateChatWindow();
                     }
+                    else if (lines[lines.Count - 1] != "[You]: ")
+                    {
+                        string input = lines[lines.Count - 1];
+                        input = FormatMessage(input);
+                        string[] inputLines = input.Split('\n');
+                        if (inputLines.Length != 1)
+                        {
+                            lines[lines.Count - 1] = inputLines[0];
+                            lines.Add(inputLines[1]);
+                            window.CustomData = "";
+                            foreach (string line in lines)
+                            {
+                                if (line != lines[lines.Count - 1])
+                                {
+                                    window.CustomData = window.CustomData + line + "\n";
+                                }
+                                else
+                                {
+                                    window.CustomData = window.CustomData + line;
+                                }
+                            }
+
+                            UpdateChatWindow();
+                        }
+                    }
+                    return output;
                 }
-                return output;
+                catch (Exception)
+                {
+                    throw new Exception("Here");
+                }
+                
             }
 
             //SCRIPTINPUT (FS)
