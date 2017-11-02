@@ -292,6 +292,7 @@ namespace IngameScript
             bool ComWorking = false;
             bool antennaAlwaysOn = false;
 
+            //SCRIPTINPUT (FS)
             public ComModule(Program par, IMyRadioAntenna ant, string name, bool antennaOn)
             {
                 parent = par;
@@ -301,6 +302,7 @@ namespace IngameScript
                 init();
             }
 
+            //SCRIPTINPUT (FS)
             void init()
             {
                 antenna.Enabled = true;
@@ -310,10 +312,6 @@ namespace IngameScript
                     parent.Echo("Com System online");
                     ComWorking = true;
                 }
-                else
-                {
-                    parent.Echo("Com System failure");
-                }
                 if (!antennaAlwaysOn)
                 {
                     antenna.SetValue("EnableBroadCast", false);
@@ -321,6 +319,7 @@ namespace IngameScript
                 
             }
 
+            //NO INPUT (FS)
             public void Run()
             {
                 if (!ComWorking)
@@ -332,7 +331,6 @@ namespace IngameScript
                     if (!antennaAlwaysOn && antenna.IsBroadcasting)
                     {
                         antenna.SetValue("EnableBroadCast", false);
-                        parent.printOut("Antenna deactivated due to low traffic");
                         antennaCounter = 0;
                     }
                     return;
@@ -396,6 +394,7 @@ namespace IngameScript
                 
             }
 
+            //USERINPUT (FS)
             public string ProcessMessage(string message)
             {
                 string[] parts = message.Split('_');
@@ -455,6 +454,7 @@ namespace IngameScript
                 return output;
             }
             
+            //SCRIPTINPUT (FS)
             void SendResponce(string target, int ID, MyTransmitTarget group = MyTransmitTarget.Ally|MyTransmitTarget.Owned)
             {
                 if (ComWorking)
@@ -464,6 +464,7 @@ namespace IngameScript
                 }
             }
 
+            //USERINPUT (FS)
             public int SendMessage(string target, string message, bool chat, MyTransmitTarget group = MyTransmitTarget.Default)
             {
                 if (ComWorking)
@@ -482,6 +483,7 @@ namespace IngameScript
                 return -1;
             }
 
+            //NO INPUT (FS)
             public void SendHey()
             {
                 if (ComWorking)

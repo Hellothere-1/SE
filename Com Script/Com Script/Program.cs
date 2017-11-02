@@ -48,9 +48,9 @@ namespace IngameScript
         IMyRadioAntenna antenna;
         bool outputIsTextPanel;
         bool isWorking = true;
-        short chat_counter = 0;
-        //Eventuell sogar chatverlauf etc (Dafür rückmeldung von Sendecode nötig...)
+        short chat_counter = 0;  
 
+        //NO INPUT (FS)
         public Program()
         {
             antenna = GridTerminalSystem.GetBlockWithName(ANTENNA_NAME) as IMyRadioAntenna;
@@ -118,6 +118,7 @@ namespace IngameScript
             Me.CustomData = "";
         }
 
+        //USERINPUT (FS)
         public void Main(string argument)
         {
             if (!isWorking)
@@ -125,7 +126,7 @@ namespace IngameScript
                 return;
             }
 
-            if (argument.StartsWith("CHAT"))
+            if (CHAT_MODE && argument.StartsWith("CHAT"))
             {
                 chathandler.HandleArgument(argument);
             }
@@ -136,7 +137,7 @@ namespace IngameScript
                 if (input != "")
                 {
                     printOut(input);
-                    if (input.StartsWith("Chat/"))
+                    if (CHAT_MODE && input.StartsWith("Chat/"))
                     {
                         string sender = argument.Split('_')[4];
                         chathandler.HandleMessage(input, sender);
@@ -146,33 +147,45 @@ namespace IngameScript
 
             if (argument.StartsWith("SEND"))
             {
-                string[] parts = argument.Split('_');
-                comHandler.SendMessage(parts[1], parts[2], false);
+                try
+                {
+                    string[] parts = argument.Split('_');
+                    comHandler.SendMessage(parts[1], parts[2], false);
+                }
+                catch (Exception)
+                {
+                    printOut("Bad command recieved: " + argument);
+                }
             }
 
             if (argument == "HEY")
             {
                 comHandler.SendHey();
             }
-
-            if (chat_counter >= 5)
+            if (CHAT_MODE)
             {
-                chat_counter = 0;
-                chathandler.Run();
+                if (chat_counter >= 5)
+                {
+                    chat_counter = 0;
+                    chathandler.Run();
+                }
+                else
+                {
+                    chat_counter++;
+                }
             }
-            else
-            {
-                chat_counter++;
-            }
+            
             
             comHandler.Run();
         }
 
+        //SCRIPTINPUT (FS)
         public void SendMessage(string target, string message)
         {
             comHandler.SendMessage(target, message, true);
         }
 
+        //SCRIPTINPUT (FS)
         public void printOut(string mes)
         {
             if (output == null)
