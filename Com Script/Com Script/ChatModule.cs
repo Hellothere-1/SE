@@ -280,15 +280,27 @@ namespace IngameScript
                         {
                             window.WritePublicText("Com Chat V1.0 LCD: " + ID + "\n\nChatting with " + currentTarget + " :\n");
                             window.WritePublicText("[You]: ", true);
+                            window.CustomData = window.GetPublicText();
                         }
                         else
                         {
                             window.WritePublicText("");
                             string[] text = window.CustomData.Split('\n');
-                            string[] save = new string[24];
+                            string[] save;
                             int start = text.Length <= 24 ? 0 : text.Length - 24;
-                            text.CopyTo(save, start);
-                            parent.parent.printOut("A");
+                            if (text.Length > 24)
+                            {
+                                save = new string[24];
+                                int counter = 0;
+                                for (start = start; start < text.Length; start++)
+                                {
+                                    save[counter] = text[start];
+                                }
+                            }
+                            else
+                            {
+                                save = text;
+                            }
                             foreach (string line in save)
                             {
                                 if (line != save[save.Length - 1])
@@ -301,7 +313,6 @@ namespace IngameScript
                                 }
 
                             }
-                            parent.parent.printOut("B");
                         }
                         break;
                     case Window.SELECTION:
