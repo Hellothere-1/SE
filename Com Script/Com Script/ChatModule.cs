@@ -88,7 +88,7 @@ namespace IngameScript
                 
             }
         
-            //USERINPUT (FS/UNTESTED)
+            //USERINPUT (FS)
             public void AddText(string mes)
             {
                 string output = "[" + currentTarget + "]: " + mes;
@@ -101,7 +101,6 @@ namespace IngameScript
                 {
                     counter--;
                 }
-                counter--;
                 foreach (string line in entry)
                 {
                     linesList.Insert(counter, line);

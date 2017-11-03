@@ -350,7 +350,6 @@ namespace IngameScript
                 foreach (string name in responceList.Keys.ToList())
                 {
                     Status stat = responceList[name].isAlive();
-                    parent.printOut("Stats: " + stat);
                     if ((stat & Status.Dead) == Status.Dead)
                     {
                         //Not activ anymore
