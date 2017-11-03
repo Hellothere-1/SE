@@ -111,7 +111,14 @@ namespace IngameScript
                 window.CustomData = "";
                 foreach (string line in lines)
                 {
-                    window.CustomData = window.CustomData + line + "\n";
+                    if (line != lines[lines.Length - 1])
+                    {
+                        window.CustomData = window.CustomData + line + "\n";
+                    }
+                    else
+                    {
+                        window.CustomData = window.CustomData + line;
+                    }
                 }
                 if (currentState == Window.CHAT)
                 {
@@ -137,6 +144,7 @@ namespace IngameScript
                 string input = GetInput();
                 if (input != "")
                 {
+                    input = input.Substring(7);
                     string mes = "Chat/Mes/" + ID + "/" + currentTargetID + "/" + input;
                     parent.SendMessage(currentTarget, mes);
                 }

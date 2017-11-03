@@ -112,6 +112,22 @@ namespace IngameScript
             {
                 Status output = Status.Dead;
                 responceTime--;
+                if (sendBuffer.Count != 0 || responceNeeded || ACKneeded)
+                {
+                    TARcounter = 3 * MAXACKTIME;
+                    output = Status.Activ;
+                }
+                TARcounter--;
+                if (TARcounter > 0)
+                {
+                    output = Status.Activ;
+                }
+                ACKcounter--;
+                if (ACKcounter <= 0 && ACKneeded)
+                {
+                    output |= Status.SendACK;
+                    ACKneeded = false;
+                }
                 if (responceTime <= 0 && responceNeeded)
                 {
                     for (int i = 0; i < pointer; i++)
@@ -126,29 +142,17 @@ namespace IngameScript
                         }
                         else
                         {
-                            output = Status.MesNotSend;
+                            output |= Status.MesNotSend;
                             lastDropped = sendBuffer[i];
                             sendBuffer.RemoveAt(i);
                             pointer--;
                         }
                     }
+                    if (sendBuffer.Count == 0)
+                    {
+                        responceNeeded = false;
+                    }
                     pointer = 0;
-                }
-                if (sendBuffer.Count != 0 || responceNeeded || ACKneeded)
-                {
-                    TARcounter = 3 * MAXACKTIME;
-                    output = Status.Activ;
-                }
-                TARcounter--;
-                if (TARcounter > 0)
-                {
-                    output = Status.Activ;
-                }
-                ACKcounter--;
-                if (ACKcounter <= 0 && ACKneeded)
-                {
-                    output = Status.SendACK;
-                    ACKneeded = false;
                 }
                 return output;
             }
@@ -346,6 +350,7 @@ namespace IngameScript
                 foreach (string name in responceList.Keys.ToList())
                 {
                     Status stat = responceList[name].isAlive();
+                    parent.printOut("Stats: " + stat);
                     if ((stat & Status.Dead) == Status.Dead)
                     {
                         //Not activ anymore
@@ -359,6 +364,8 @@ namespace IngameScript
                     }
                     if ((stat & Status.MesNotSend) == Status.MesNotSend)
                     {
+                        Message message = responceList[name].getLastDropped();
+                        parent.printOut("MESDROPPED/" + message.targetName + "/" + message.ID);
                         parent.chathandler.MessageDropped(responceList[name].getLastDropped());
                     }
                 }
@@ -369,7 +376,7 @@ namespace IngameScript
                 }
                 if (mes != null && antenna.IsBroadcasting && antennaCounter > 3 && antenna.TransmitMessage(mes.ToString(ownName), mes.targetGroup))
                 {
-                    //parent.printOut("Message send : " + mes.ToString());
+                    parent.printOut("Message send : " + mes.ToString(ownName));
                     if ((mes.tag == Tag.MES || mes.tag == Tag.CHAT) && !priolist)
                     {
                         current.increasePointer();
@@ -478,8 +485,10 @@ namespace IngameScript
                     {
                         mes.tag = Tag.CHAT;
                     }
+                    parent.printOut("Message added");
                     return responceList[target].addMessage(mes);
                 }
+                parent.printOut("Message not added");
                 return -1;
             }
 
