@@ -244,7 +244,7 @@ namespace IngameScript
                         break;
                     default:
                         //TODO improve this structure
-                        parent.parent.printOut("Bad command at LCD: " + ID + " , was : " + argument);
+                        parent.parent.printOut("WARNING: Bad command at this LCD, was : " + argument);
                         break;
                 }
                 UpdateChatWindow();
@@ -431,7 +431,6 @@ namespace IngameScript
                                 window.CustomData = window.CustomData + line;
                             }
                         }
-                        parent.parent.printOut("Test");
                         UpdateChatWindow();
                     }
                     else if (lines[lines.Count - 1] != "[You]: ")
@@ -463,7 +462,8 @@ namespace IngameScript
                 }
                 catch (Exception)
                 {
-                    throw new Exception("Here");
+                    parent.parent.printOut("ERROR 0X001 @ CHATMODULE/GET_INPUT");
+                    throw new Exception("ERROR 0X001 @ CHATMODULE/GET_INPUT");
                 }
                 
             }

@@ -73,7 +73,8 @@ namespace IngameScript
 
         class Target
         {
-            const int MAXACKTIME = 5;
+            const int MAXACKTIME = 3;
+            const int MAXRESPONCETIME = 3 * MAXACKTIME;
             const int MAXROUND = 3;
             int currentID;
 
@@ -84,7 +85,7 @@ namespace IngameScript
             //Indicates wether a responce is needed right now or not
             bool responceNeeded = false;
             //Indicates the time in ticks until responce should be recieved
-            int responceTime = MAXACKTIME + (int)(0.2F * (float)MAXACKTIME);
+            int responceTime = MAXRESPONCETIME;
             //Indicates the position in the sendBuffer list
             int pointer = 0;
             //ID which indentifies the last message which has been recieved from the sender
@@ -182,7 +183,7 @@ namespace IngameScript
             {
                 pointer++;
                 responceNeeded = true;
-                responceTime = MAXACKTIME + (int) (0.2F * (float) MAXACKTIME);
+                responceTime = MAXRESPONCETIME;
                 TARcounter = 3 * MAXACKTIME;
             }
 
@@ -216,6 +217,11 @@ namespace IngameScript
                         ACKneeded = false;
                         return lastRecievedID;
                     }
+                }
+                if (ID == lastACKedID)
+                {
+                    //ACK message lost
+                    return lastRecievedID;
                 }
                 return -1;
             }
@@ -364,7 +370,7 @@ namespace IngameScript
                     if ((stat & Status.MesNotSend) == Status.MesNotSend)
                     {
                         Message message = responceList[name].getLastDropped();
-                        parent.printOut("MESDROPPED/" + message.targetName + "/" + message.ID);
+                        parent.printOut("MESDROPPED: " + message.targetName + "/" + message.ID);
                         parent.chathandler.MessageDropped(responceList[name].getLastDropped());
                     }
                 }
@@ -375,7 +381,10 @@ namespace IngameScript
                 }
                 if (mes != null && antenna.IsBroadcasting && antennaCounter > 3 && antenna.TransmitMessage(mes.ToString(ownName), mes.targetGroup))
                 {
-                    parent.printOut("Message send : " + mes.ToString(ownName));
+                    if(mes.tag != Tag.HEY)
+                    {
+                        parent.printOut("INFO: Message send : " + mes.tag + " " + mes.payload);
+                    }
                     if ((mes.tag == Tag.MES || mes.tag == Tag.CHAT) && !priolist)
                     {
                         current.increasePointer();
@@ -413,18 +422,18 @@ namespace IngameScript
                         case Tag.RES:
                             if (parts[(int) Part.TARGET] == ownName || responceList.Keys.Contains(parts[(int) Part.SENDER]))
                             {
-                                parent.printOut("Recieved Reponse for message(s) with ID " + parts[(int)Part.ID]);
+                                parent.printOut("INFO: Recieved Reponse for message(s) with ID " + parts[(int)Part.ID]);
                                 if (responceList[parts[(int)Part.SENDER]].recieveACK(int.Parse(parts[(int)Part.ID])))
                                 {
                                     //End of communication reached, but remove will be called by stat = DEAD
-                                    parent.printOut("Communication with " + parts[(int)Part.SENDER] + " completed, all Data transmitted");
+                                    parent.printOut("INFO: Communication with " + parts[(int)Part.SENDER] + " completed, all Data transmitted");
                                 }
                             }
                             break;
                         case Tag.MES | Tag.CHAT:
                             if (parts[2] == ownName)
                             {
-                                parent.printOut("Recieved message from " + parts[(int)Part.SENDER] + " with ID " + parts[(int)Part.ID]);
+                                parent.printOut("INFO: Recieved message from " + parts[(int)Part.SENDER] + " with ID " + parts[(int)Part.ID]);
                                 if (responceList.Count == 0 || !responceList.Keys.Contains(parts[(int)Part.SENDER]))
                                 {
                                     responceList.Add(parts[(int)Part.SENDER], new Target(parts[(int) Part.SENDER]));
@@ -449,13 +458,12 @@ namespace IngameScript
                                 parent.chathandler.updateShip(parts[2], false);
                             }
                             knownContacts[parts[2]] = 0;
-                            //parent.printOut("HEY from " + parts[2] + " recieved");
                             break;
                     }
                 }
                 catch (Exception)
                 {
-                    parent.printOut("Bad command recieved: " + message);
+                    parent.printOut("WARNING: Bad command recieved: " + message);
                 }
                 return output;
             }
@@ -484,10 +492,10 @@ namespace IngameScript
                     {
                         mes.tag = Tag.CHAT;
                     }
-                    parent.printOut("Message added");
+                    parent.printOut("INFO: Message added");
                     return responceList[target].addMessage(mes);
                 }
-                parent.printOut("Message not added");
+                parent.printOut("WARNING: Message not added");
                 return -1;
             }
 

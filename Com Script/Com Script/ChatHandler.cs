@@ -79,23 +79,30 @@ namespace IngameScript
                                 if (current.requestsOpen > 0)
                                 {
                                     cm.SetChatPartner();
+                                    foreach (string mes in current.messages)
+                                    {
+                                        cm.AddText(mes);
+                                    }
                                 }
-                                
                             }
                             AssignNext(cm, position, requester);
                         }
-                        current.requestsOpen = 0;
+                        RemoveRequestFromList(position, false);
                         break;
                     case Request_Options.DECLINE:
                         AssignNext(chatWindows[ownID], position, requester);
                         current.requestsOpen--;
+                        if (current.requestsOpen <= 0)
+                        {
+                            RemoveRequestFromList(position, true);
+                        }
                         break;
                     case Request_Options.DECLINE_ALL:
                         foreach (ChatModule cm in chatWindows.Values.ToList())
                         {
                             AssignNext(cm, position, requester);
                         }
-                        current.requestsOpen = 0;
+                        RemoveRequestFromList(position, true);
                         break;
                 }
             }
@@ -119,7 +126,7 @@ namespace IngameScript
                     }
                     catch (Exception)
                     {
-                        parent.printOut("Bad message recieved: " + message);
+                        parent.printOut("WARNING: Bad message recieved: " + message);
                         return;
                     }
                     return;
@@ -129,11 +136,15 @@ namespace IngameScript
                     int[] Ids = ExtractID(message);
                     if (Ids[1] == 0)
                     {
-                        RequestSave rs = new RequestSave();
-                        rs.targetName = sender;
-                        rs.targetID = Ids[0];
-                        rs.requestsOpen = chatWindows.Count;
-                        rs.messages.Add(message);
+                        RequestSave rs = new RequestSave
+                        {
+                            targetName = sender,
+                            targetID = Ids[0],
+                            requestsOpen = chatWindows.Count,
+                            messages = new List<string>()
+                        };
+                        string mes = message.Split('/')[4];
+                        rs.messages.Add(mes);
                         requests.Add(rs);
                         if (!lookUpTable.Keys.Contains(sender))
                         {
@@ -157,7 +168,8 @@ namespace IngameScript
                     }
                     else if(Ids[0] != -1)
                     {
-                        chatWindows[Ids[1]].AddText(message);
+                        string mes = message.Split('/')[4];
+                        chatWindows[Ids[1]].AddText(mes);
                     }
                 }
                 catch (Exception e)
@@ -179,7 +191,7 @@ namespace IngameScript
                 }
                 catch (Exception)
                 {
-                    parent.printOut("Bad argument recieved: " + message);
+                    parent.printOut("WARNING: Bad argument recieved: " + message);
                 }
             }
 
@@ -242,24 +254,6 @@ namespace IngameScript
                 {
                     chat.Run();
                 }
-                try
-                {
-                    for (int i = 0; i < requests.Count; i++)
-                    {
-                        if (requests[i].requestsOpen <= 0)
-                        {
-                            string mes = "Chat/ReqDec/" + requests[i].targetID;
-                            parent.comHandler.SendMessage(requests[i].targetName, mes, true);
-                            RemoveRequestFromList(i);
-                        }
-                    }
-                }
-                catch (Exception)
-                {
-                    //If the code stucks here, change requests.Count to a dynamic variable which decreases when something is removed
-                    parent.printOut("ERROR: 0X004 @ CHAT_HANDLER/RUN");
-                    throw new Exception("ERROR: 0X004 @ CHAT_HANDLER/RUN");
-                }
             }
 
             //SCRIPTINPUT (FS)
@@ -291,19 +285,19 @@ namespace IngameScript
                 }
                 catch
                 {
-                    parent.printOut("Bad IDs recieved: " + mes);
+                    parent.printOut("WARNING: Bad IDs recieved: " + mes);
                     return new int[] {-1, -1 };
                 }
             }
 
             //SCRIPTINPUT (FS)
-            void RemoveRequestFromList(int position)
+            void RemoveRequestFromList(int position, bool declined)
             {
                 RequestSave toDelete = requests[position];
                 int[] cPos = lookUpTable[toDelete.targetName];
                 if (cPos.Length == 1)
                 {
-                    if (cPos[0] != toDelete.targetID)
+                    if (cPos[0] != position)
                     {
                         parent.printOut("ERROR: 0X002 @ CHAT_HANDLER/REMOVE_REQUEST");
                         throw new Exception("ERROR: 0X002 @ CHAT_HANDLER/REMOVE_REQUEST");
@@ -319,7 +313,7 @@ namespace IngameScript
                     {
                         foreach (int i in cPos)
                         {
-                            if (i != toDelete.targetID)
+                            if (i != position)
                             {
                                 newLookup[counter] = i;
                                 counter++;
@@ -334,6 +328,11 @@ namespace IngameScript
                     }
                     lookUpTable[toDelete.targetName] = newLookup;
                     requests.RemoveAt(position);
+                }
+                if (declined)
+                {
+                    string mes = "Chat/ReqDec/" + toDelete.targetID;
+                    parent.SendMessage(toDelete.targetName, mes);
                 }
             }
         }

@@ -136,11 +136,14 @@ namespace IngameScript
                 string input = comHandler.ProcessMessage(argument);
                 if (input != "")
                 {
-                    printOut(input);
                     if (CHAT_MODE && input.StartsWith("Chat/"))
                     {
                         string sender = argument.Split('_')[4];
                         chathandler.HandleMessage(input, sender);
+                    }
+                    else
+                    {
+                        printOut("MESSAGE: " + input);
                     }
                 }
             }
@@ -154,7 +157,7 @@ namespace IngameScript
                 }
                 catch (Exception)
                 {
-                    printOut("Bad command recieved: " + argument);
+                    printOut("WARNING: Bad command recieved: " + argument);
                 }
             }
 
