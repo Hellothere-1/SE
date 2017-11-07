@@ -340,7 +340,7 @@ namespace IngameScript
                         break;
                     case Window.REQUEST:
                         window.WritePublicText("Com Chat V1.0 LCD: " + ID + "\n\n");
-                        window.WritePublicText("Hot single " + currentRequest + " in your area wants to chat with you\n", true);
+                        window.WritePublicText(currentRequest + " wants to set up a connection with you\n", true);
                         for (int i = 0; i < Enum.GetNames(typeof(Request_Options)).Length; i++)
                         {
                             if (subpointer != i)

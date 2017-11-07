@@ -33,7 +33,7 @@ namespace IngameScript
         string OUTPUT_NAME = "RC_Out";
         //Set custom chat window name which should be searched
         string CHAT_NAME = "RC_Chat";
-        //Set handling of antenna (0 = all, 1 = own and ally, 2 = own), deafult 1
+        //Set handling of antenna (0 = all, 1 = own and ally, 2 = own), default 1
         short ACCEPT_MESSAGE = 1;
         //END OF USER PART, do not change anything under this line !!
 
