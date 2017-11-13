@@ -1,0 +1,22 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.26730.15
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Wrecking Script", "Wrecking Script\Wrecking Script.csproj", "{A4FAADD5-50E8-4FCA-AA40-0D237AC4571B}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A4FAADD5-50E8-4FCA-AA40-0D237AC4571B}.Debug|x64.ActiveCfg = Debug|x64
+		{A4FAADD5-50E8-4FCA-AA40-0D237AC4571B}.Debug|x64.Build.0 = Debug|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {42C5D5D6-E221-4C84-85F0-8FA156956DFD}
+	EndGlobalSection
+EndGlobal
