@@ -1,0 +1,22 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.26730.16
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Fire Control System", "Fire Control System\Fire Control System.csproj", "{984150A6-0610-4F55-BDD6-AEDA54CEC9D2}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x64 = Debug|x64
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{984150A6-0610-4F55-BDD6-AEDA54CEC9D2}.Debug|x64.ActiveCfg = Debug|x64
+		{984150A6-0610-4F55-BDD6-AEDA54CEC9D2}.Debug|x64.Build.0 = Debug|x64
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {A42BD4DA-D089-4F0F-AEA3-A9F9D880FA99}
+	EndGlobalSection
+EndGlobal
