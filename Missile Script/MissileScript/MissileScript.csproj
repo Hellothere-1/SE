@@ -90,12 +90,13 @@
       <Private>False</Private>
     </Reference>
     <Reference Include="MDKUtilities">
-      <HintPath>C:\Users\Jari\AppData\Local\Microsoft\VisualStudio\15.0_ae131427\Extensions\44011dyj.wnz\MDKUtilities.dll</HintPath>
+      <HintPath>C:\Users\Jari\AppData\Local\Microsoft\VisualStudio\15.0_ae131427\Extensions\phk1cirt.pfn\MDKUtilities.dll</HintPath>
       <Private>True</Private>
     </Reference>
-    <Analyzer Include="C:\Users\Jari\AppData\Local\Microsoft\VisualStudio\15.0_ae131427\Extensions\44011dyj.wnz\Analyzers\MDKAnalyzer.dll" />
+    <Analyzer Include="C:\Users\Jari\AppData\Local\Microsoft\VisualStudio\15.0_ae131427\Extensions\phk1cirt.pfn\Analyzers\MDKAnalyzer.dll" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Launch.cs" />
     <Compile Include="Com-Modul.cs" />
     <Compile Include="Gyroscope.cs" />
     <Compile Include="TargetFuncs.cs" />
