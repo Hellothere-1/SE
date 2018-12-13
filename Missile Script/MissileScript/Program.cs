@@ -24,6 +24,10 @@ namespace IngameScript
         private String comPartner = "";
         private String key = "";
 
+        //Launch orders
+        enum Side {UP, DOWN, LEFT, RIGHT, FORWARD, BACKWARD };
+
+
 
         //int lengthSave;
         //Maybe save some amount of raycast distance for emergency use
@@ -36,6 +40,7 @@ namespace IngameScript
         IMyBlockGroup starterBlocks;
 
         TargetFuncs funcs;
+        Launch launchHandler;
 
         Vector3 directions;
 
@@ -48,10 +53,13 @@ namespace IngameScript
         bool launched = false;
         bool init = false;
 
+
+
         public Program()
         {
             programmableBlock = Me;
             //Search for starter Group with this pb in it
+            /*
             List<IMyBlockGroup> allGroups = new List<IMyBlockGroup>();
             GridTerminalSystem.GetBlockGroups(allGroups);
             bool found = false;
@@ -124,12 +132,12 @@ namespace IngameScript
             catch (Exception)
             {
                 Echo("Antenna could not be found in starter group");
-                //return;
-            }
+                return;
+            }*/
             setupSuccess = true;
-            funcs = new TargetFuncs(this, visor);
+            //funcs = new TargetFuncs(this, visor);
             Echo("Setup completed, Missile ready to fire");
-            //Components found, setup complete, missile ready to fire 
+            //Components found, setup complete, missile ready to fire
         }
 
         public void Main(string argument)
@@ -138,12 +146,21 @@ namespace IngameScript
             {
                 return;
             }
-
-            if (argument.StartsWith("COM"))
+            if (argument == "Parse")
             {
-
+                string[] orders = Me.CustomData.Split('\n');
+                short errors = 0;
+                foreach (string order in orders)
+                {
+                    if (!launchHandler.ParseLaunchOrder(order))
+                    {
+                        Echo("Parsing of line " + order + " failed!");
+                        errors++;
+                    }
+                }
+                Echo("Finished parsing with " + errors + " incorrect lines");
+                Echo("Remenber that type errors will occur only at runtime");
             }
-
             if (launched)
             {
                 if (!init)
@@ -226,7 +243,7 @@ namespace IngameScript
             {
                 gyro.GyroOverride = true;
                 gyros.Add(new Gyroscope(gyro, control));
-                
+
             }
 
             List<IMyThrust> thruster = new List<IMyThrust>();
@@ -238,6 +255,10 @@ namespace IngameScript
             //thrust.SetValueFloat("Override", 100);
             //Method used to set override, should be in target function class
         }
+
+
+
+
 
         void SetGyros(float pitch, float yaw, float roll)
         {

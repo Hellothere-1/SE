@@ -165,6 +165,14 @@ namespace IngameScript
             {
                 comHandler.SendHey();
             }
+            if (argument == "SHIPLIST")
+            {
+                List<string> output = chathandler.GetKnownShips();
+                foreach (string name in output)
+                {
+                    printOut("SHIPNAME: " + name);
+                }
+            }
             if (CHAT_MODE)
             {
                 if (chat_counter >= 5)
