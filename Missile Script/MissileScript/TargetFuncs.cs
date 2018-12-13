@@ -40,7 +40,7 @@ namespace IngameScript
             Vector3D predictedPosition;
             Vector3 predictedPositionAngles;
             Vector3 lastCourse;
-            float lastDistance = -1;
+            internal float lastDistance = -1;
             float timeToTarget = -1;
             bool targetFound = false;
             int ticks = 1;
@@ -89,7 +89,7 @@ namespace IngameScript
 
                 if (TotalMass == -1)
                 {
-                    TotalMass = control.CalculateShipMass().TotalMass;
+                    TotalMass = (int) control.CalculateShipMass().TotalMass;
                 }
                 if (MaxThrust == -1)
                 {

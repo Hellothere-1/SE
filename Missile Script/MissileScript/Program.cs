@@ -124,7 +124,7 @@ namespace IngameScript
             catch (Exception)
             {
                 Echo("Antenna could not be found in starter group");
-                return;
+                //return;
             }
             setupSuccess = true;
             funcs = new TargetFuncs(this, visor);
@@ -155,6 +155,20 @@ namespace IngameScript
                 else
                 {
                     directions = funcs.run(control);
+                    if (funcs.lastDistance < 3)
+                    {
+                        foreach (IMyWarhead boom in warheads)
+                        {
+                            if (boom.GetValueBool("Safety"))
+                            {
+                                boom.SetValueBool("Safety", false);
+                            }
+                        }
+                        foreach (IMyWarhead boom in warheads)
+                        {
+                            boom.Detonate();
+                        }
+                    }
                     SetGyros(directions.Z, directions.Y, 0);
                     if (directions.Y == 0 && directions.Z == 0)
                     {
@@ -196,6 +210,7 @@ namespace IngameScript
         {
             //TODO arm warheads at launch? or better to arm them after time/correct launch?
             GridTerminalSystem.GetBlocksOfType(warheads);
+            /*
             foreach (IMyWarhead boom in warheads)
             {
                 if (!boom.GetValueBool("Safety"))
@@ -203,13 +218,22 @@ namespace IngameScript
                     boom.SetValueBool("Safety", true);
                 }
             }
-
+            */
             List<IMyGyro> GyrosList = new List<IMyGyro>();
             GridTerminalSystem.GetBlocksOfType(GyrosList);
+            merge.Enabled = false;
             foreach (IMyGyro gyro in GyrosList)
             {
                 gyro.GyroOverride = true;
                 gyros.Add(new Gyroscope(gyro, control));
+                
+            }
+
+            List<IMyThrust> thruster = new List<IMyThrust>();
+            GridTerminalSystem.GetBlocksOfType(thruster);
+            foreach (IMyThrust t in thruster)
+            {
+                t.SetValueFloat("Override", t.MaxThrust);
             }
             //thrust.SetValueFloat("Override", 100);
             //Method used to set override, should be in target function class
