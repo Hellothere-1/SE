@@ -33,6 +33,8 @@ namespace IngameScript
 
         bool initialized = false;
 
+        int tempcounter = 0;
+
         
         public Program()
         {
@@ -145,6 +147,7 @@ namespace IngameScript
             if(!initialized)
             {
                 Echo("initializing");
+                Echo(tempcounter++.ToString());
                 Init();
                 Echo("initialized");
                 return;
