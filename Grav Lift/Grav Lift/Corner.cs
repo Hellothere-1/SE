@@ -23,7 +23,7 @@ namespace IngameScript
             public IMyTerminalBlock block { get; private set; }
             public List<Corridor> corridors { get; private set; } = new List<Corridor>();
 
-            public Corner (IMyTerminalBlock block)
+            public Corner(IMyTerminalBlock block)
             {
                 this.block = block;
             }
@@ -31,6 +31,28 @@ namespace IngameScript
             public void AddCorridor(Corridor corridor)
             {
                 corridors.Add(corridor);
+            }
+            public override void FindPathRecursive(Waypoint origin)
+            {
+                base.FindPathRecursive(origin);
+
+                foreach (Corridor corridor in corridors)
+                {
+                    if (corridor != origin && !corridor.visited)
+                    {
+                        ToTest.Enqueue(corridor);
+                    }
+                }
+
+                if (ToTest.Count > 0)
+                {
+                    ToTest.Dequeue().FindPathRecursive(this);
+                }
+            }
+
+            public override Waypoint tick(Vector3 position, Vector3 velocity, Vector3 compensateAcc)
+            {
+                return nextWaypoint;
             }
         }
     }

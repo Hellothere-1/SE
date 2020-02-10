@@ -31,6 +31,10 @@ namespace IngameScript
         MatrixD worldToAnchorLocalMatrix;
 
         IEnumerator<bool> _stateMachine;
+
+        Waypoint active;
+
+        int selectedStation;
         
         public Program()
         {
@@ -166,6 +170,29 @@ namespace IngameScript
                 yield return true;
             }
 
+            List<IMyTextPanel> screens = new List<IMyTextPanel>();
+
+            blocks.GetBlocksOfType(screens, x => x.CubeGrid == Me.CubeGrid);
+
+            foreach (IMyTextPanel screen in screens)
+            {
+                float min = float.MaxValue;
+                Station closest = stations[0];
+
+                foreach (Station s in stations)  
+                {
+                    float d = screen.Position.RectangularDistance(s.panel.Position);
+                    if (d < min)
+                    {
+                        min = d;
+                        closest = s;
+                    }
+                    Echo(initCounter++.ToString());
+                }
+                closest.SetScreen(screen);
+                yield return true;
+            }
+
             List<IMyTerminalBlock> corners = new List<IMyTerminalBlock>();
             blocks.GetBlocks(corners, x => x.CustomName.Contains("corner"));
 
@@ -199,49 +226,103 @@ namespace IngameScript
 
         public void Main(string argument, UpdateType updateSource)
         {
-            if(RunInit())
+            if (RunInit())
             {
                 return;
-            }
-
-            if (argument == "toggle")
-            {
-                if (Runtime.UpdateFrequency == UpdateFrequency.None)
-                {
-                    Runtime.UpdateFrequency = UpdateFrequency.Update1;
-                }
-                else
-                {
-                    foreach (Corridor c in corridors)
-                    {
-                        c.SetGravity(Vector3.Zero);
-                    }
-                    Runtime.UpdateFrequency = UpdateFrequency.None;
-                    return;
-                }
-            }
-
-            UpdateOrientationMatrix();
-
-            List<MyDetectedEntityInfo> players = GetDetectedPlayers();
-
-            if(players.Count == 0)
-            {
-                return;
-            }
-
-            Vector3 pos = GetRelativePosition(players[0]);
-            Vector3 vel = GetRelativeVelocity(players[0]);
-            Vector3 compensateAcc = Base6Directions.GetVector(reference.Orientation.Up)*9.81f;
-
-            foreach (Station s in stations)
-            {
-                Echo(s.positionInCorridor.ToString());
             }
 
             foreach (Corridor c in corridors)
             {
-                c.tick(pos, vel, compensateAcc,stations[0].positionInCorridor);
+                Echo(c.corners.Count.ToString());
+            }
+
+            if (argument != "")
+            {
+                if (argument == "up")
+                {
+                    selectedStation--;
+                    UpdateScreens();
+                }
+                else if (argument == "down")
+                {
+                    selectedStation++;
+                    UpdateScreens();
+                }
+                Echo(argument);
+                string s = argument;
+
+                Station from = stations.FirstOrDefault(x => x.GetName() == s);
+                Station to = stations[selectedStation];
+
+                if (from == null )
+                {
+                    Echo("Station name not found");
+                    Echo(argument);
+                    return;
+                }
+                 
+
+                if (Waypoint.FindPath(from, to))
+                {
+                    active = from;
+                    Echo("path found");
+                }
+                else
+                {
+                    Echo("no path found");
+                }
+            }
+
+            if (active != null)
+            {
+
+                Echo("blib");
+                UpdateOrientationMatrix();
+
+                List<MyDetectedEntityInfo> players = GetDetectedPlayers();
+                Echo(players.Count.ToString());
+                if (players.Count == 0)
+                {
+                    Echo("player lost");
+                    active = null;
+                    foreach (Corridor c in corridors)
+                    {
+                        c.SetGravity(Vector3.Zero);
+                    }
+                    return;
+                }
+
+                Vector3 pos = GetRelativePosition(players[0]);
+                Vector3 vel = GetRelativeVelocity(players[0]);
+                Vector3 compensateAcc = Base6Directions.GetVector(reference.Orientation.Up) * 9.81f;
+
+                active = active.tick(pos, vel, compensateAcc);
+
+                Runtime.UpdateFrequency = UpdateFrequency.Once;
+            }
+            else
+            {
+                foreach (Corridor c in corridors)
+                {
+                    c.SetGravity(Vector3.Zero);
+                }
+            }
+        }
+
+        void UpdateScreens()
+        {
+            if(selectedStation>=stations.Length)
+            {
+                selectedStation = 0;
+            }
+            if (selectedStation < 0)
+            {
+                selectedStation = stations.Length-1;
+            }
+
+            foreach (Station s in stations)
+            {
+                s.SetText(stations[selectedStation].GetName());
             }
         }
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////                                          
@@ -281,10 +362,12 @@ namespace IngameScript
         public List<MyDetectedEntityInfo> GetDetectedPlayers ()
         {
             List<MyDetectedEntityInfo> entities = new List<MyDetectedEntityInfo>();
+            List<MyDetectedEntityInfo> sensorEntities = new List<MyDetectedEntityInfo>();
 
             foreach (IMySensorBlock sensor in sensors)
             {
-                sensor.DetectedEntities(entities);
+                sensor.DetectedEntities(sensorEntities);
+                entities.AddList(sensorEntities);
             }
             return entities;
         }

@@ -23,15 +23,54 @@ namespace IngameScript
         {
             public Waypoint nextWaypoint = null;
             public bool visited = false;
+            static protected Station target;
+            static protected Queue<Waypoint> ToTest = new Queue<Waypoint>();
+            static protected List<Waypoint> allVisited = new List<Waypoint>();
 
-            public void FindPath(Station from, Station to)
+            public static bool FindPath(Station from, Station to)
             {
-                to.corridor.FindPathRecursive(from, to);
+                if(to == from)
+                {
+                    return false;
+                }
+                ToTest.Clear();
+                allVisited.Clear();
+                to.nextWaypoint = null;
+
+                target = from;
+
+                to.corridor.FindPathRecursive(to);
+
+                bool pathFound = from.visited;
+
+                ClearAll();
+
+                return pathFound;
             }
 
-            protected virtual void FindPathRecursive(Station target, Waypoint Origin)
+            public virtual Waypoint tick(Vector3 position, Vector3 velocity, Vector3 compensateAcc)
             {
-                nextWaypoint = Origin;
+                return null;
+            }
+
+            public static void ClearAll()
+            {
+                foreach (Waypoint waypoint in allVisited)
+                {
+                    waypoint.Clear();
+                }
+            }
+
+            public virtual void FindPathRecursive(Waypoint origin)
+            {
+                nextWaypoint = origin;
+                visited = true;
+                allVisited.Add(this);
+            }
+
+            protected void Clear()
+            {
+                visited = false;
             }
 
         }

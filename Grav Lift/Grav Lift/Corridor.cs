@@ -34,6 +34,8 @@ namespace IngameScript
             public List<Corner> corners { get; private set; } = new List<Corner>();
             List<float> cornerCoordinates = new List<float>();
 
+            int targetCornerIndex;
+
             public List<Station> stations { get; private set; } = new List<Station>();
 
 
@@ -62,7 +64,9 @@ namespace IngameScript
 
             public bool IsInCorridor(IMyCubeBlock block)
             {
-                return Vector3I.Dot(block.Position - core.Position, Base6Directions.GetIntVector(core.Orientation.Forward)) == (block.Position-core.Position).RectangularLength();
+                Vector3I v1 = block.Position - position;
+
+                return Vector3I.Dot(v1, Base6Directions.GetIntVector(core.Orientation.Up)) == 0 && Vector3I.Dot(v1, Base6Directions.GetIntVector(core.Orientation.Left)) == 0;
             }
 
 
@@ -93,7 +97,7 @@ namespace IngameScript
                 }
             }
 
-            public void tick(Vector3 position, Vector3 velocity, Vector3 compensateAcc, Vector3 target)
+            public override Waypoint tick(Vector3 position, Vector3 velocity, Vector3 compensateAcc)
             {
                 //transforming inputs into local coordinates
                 position = Vector3.Transform(position - referenceOffset, localRotationMatrix);
@@ -102,16 +106,23 @@ namespace IngameScript
 
                 Vector3 grav;
 
-                //grav = -position - velocity;
-                //grav.Z = target.Z - position.Z - velocity.Z;
+                Vector3 target;
 
+                if (nextWaypoint is Station)
+                {
+                    target = ((Station)nextWaypoint).positionInCorridor;
+                }
+                else
+                {
+                    target = new Vector3(0, 0, cornerCoordinates[targetCornerIndex]);
+                }
 
                 if (Math.Abs(position.Z - target.Z) < 1f&& Math.Abs(velocity.Z)<3)
                 {
-                    if(Vector3.RectangularDistance(position,target)<1.25f)
+                    if(Vector3.RectangularDistance(position, target)<1.25f)
                     {
                         SetGravity(Vector3.Zero);
-                        return;
+                        return nextWaypoint;
                     }
 
                     grav = target - position - velocity/2;
@@ -151,6 +162,7 @@ namespace IngameScript
                 }
 
                 SetGravity(grav + compensateAcc);
+                return this;
             }
 
 
@@ -176,7 +188,31 @@ namespace IngameScript
 
             public float GetMaxacceleration(int axis)
             {
-                return numberOfGeneratorsInDirection[axis] * 8f;
+                return numberOfGeneratorsInDirection[axis] * 5.5f;
+            }
+
+            public override void FindPathRecursive(Waypoint origin)
+            {
+                base.FindPathRecursive(origin);
+
+                if(stations.Contains(target))
+                {
+                    target.FindPathRecursive(this);
+                    return;
+                }
+
+                foreach (Corner corner in corners)
+                {
+                    if (corner != origin && !corner.visited)
+                    {
+                        ToTest.Enqueue(corner);
+                    }
+                }
+
+                if (ToTest.Count > 0)
+                {
+                    ToTest.Dequeue().FindPathRecursive(this);
+                }
             }
         }
 
