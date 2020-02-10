@@ -23,18 +23,14 @@ namespace IngameScript
         IMyShipController reference;
 
         Corridor[] corridors;
+        Station[] stations;
 
         List<IMySensorBlock> sensors = new List<IMySensorBlock>();
-        Station[] stations;
+
 
         MatrixD worldToAnchorLocalMatrix;
 
         IEnumerator<bool> _stateMachine;
-
-        bool initialized = false;
-
-        int tempcounter = 0;
-
         
         public Program()
         {
@@ -43,6 +39,7 @@ namespace IngameScript
             blocks = GridTerminalSystem.GetBlockGroupWithName("Grav Lift");
 
             //Get Ship Controller as Reference
+
             List<IMyShipController> controllers = new List<IMyShipController>();
             blocks.GetBlocksOfType(controllers, x => x.CubeGrid == Me.CubeGrid);
 
@@ -64,14 +61,43 @@ namespace IngameScript
             {
                 stations[i] = new Station(panels[i]);
             }
+            Runtime.UpdateFrequency = UpdateFrequency.Once;
+        }
 
-            Runtime.UpdateFrequency = UpdateFrequency.Update1;
+        public bool RunInit()
+        {
+            if (_stateMachine == null)
+            {
+                return false;
+            }
+
+            bool hasMoreSteps = _stateMachine.MoveNext();
+
+            if (hasMoreSteps)
+            {
+                Echo("initializing");
+                Runtime.UpdateFrequency |= UpdateFrequency.Once;
+                return true;
+            }
+
+            _stateMachine.Dispose();
+            _stateMachine = null;
+
+            foreach (Corridor c in corridors)
+            {
+                c.SetGravity(Vector3.Zero);
+            }
+
+            Echo("Init complete");
+            return true;
         }
 
         public IEnumerator<bool> Init()
         {
             Echo("mark");
             int initCounter = 0;
+
+
             //Get All Gravity Generators
             List<IMyGravityGenerator> gravityGenerators = new List<IMyGravityGenerator>();
             blocks.GetBlocksOfType(gravityGenerators, x => x.CubeGrid == Me.CubeGrid);
@@ -114,22 +140,51 @@ namespace IngameScript
                         min = d;
                         closest = corridor;
                     }
-                    Echo(initCounter.ToString());
-                    initCounter++;
+                    Echo(initCounter++.ToString());
                 }
                 closest.AddGenerator(g); //add grav gen to corridor with closest core
 
                 yield return true;
             }
 
-            Echo("Init complete");
-            gravityGenerators = null;
-            Runtime.UpdateFrequency = UpdateFrequency.None;
-            foreach (Corridor c in corridors)
+            foreach (Station s in stations)
             {
-                c.SetGravity(Vector3.Zero);
+               float min = float.MaxValue;
+                Corridor closest = corridors[0];
+
+                foreach (Corridor corridor in corridors)  //find closest corridor corridor to current Station
+                {
+                    float d = corridor.GetSquareDistance(s.panel);
+                    if (d < min)
+                    {
+                        min = d;
+                        closest = corridor;
+                    }
+                    Echo(initCounter++.ToString());
+                }
+                closest.AddStation(s); //add station to closest corridor
+                yield return true;
             }
-            initialized = true;
+
+            List<IMyTerminalBlock> corners = new List<IMyTerminalBlock>();
+            blocks.GetBlocks(corners, x => x.CustomName.Contains("corner"));
+
+            foreach(IMyTerminalBlock block in corners)
+            {
+                Corner corner = new Corner(block);
+
+                foreach(Corridor corridor in corridors)
+                {
+                    if(corridor.IsInCorridor(block))
+                    {
+                        corridor.AddCorner(corner);
+                    }
+                }
+                Echo(initCounter++.ToString());
+                yield return true;
+            }
+
+            Array.Sort(stations, (x, y) => String.Compare(x.GetName(), y.GetName()));
         }
 
         public void Save()
@@ -144,18 +199,14 @@ namespace IngameScript
 
         public void Main(string argument, UpdateType updateSource)
         {
-            if(!initialized)
+            if(RunInit())
             {
-                Echo("initializing");
-                Echo(tempcounter++.ToString());
-                Init();
-                Echo("initialized");
                 return;
             }
 
-            if(argument == "toggle")
+            if (argument == "toggle")
             {
-                if(Runtime.UpdateFrequency == UpdateFrequency.None)
+                if (Runtime.UpdateFrequency == UpdateFrequency.None)
                 {
                     Runtime.UpdateFrequency = UpdateFrequency.Update1;
                 }
@@ -183,10 +234,14 @@ namespace IngameScript
             Vector3 vel = GetRelativeVelocity(players[0]);
             Vector3 compensateAcc = Base6Directions.GetVector(reference.Orientation.Up)*9.81f;
 
+            foreach (Station s in stations)
+            {
+                Echo(s.positionInCorridor.ToString());
+            }
 
             foreach (Corridor c in corridors)
             {
-                c.tick(pos, vel, compensateAcc);
+                c.tick(pos, vel, compensateAcc,stations[0].positionInCorridor);
             }
         }
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////                                          

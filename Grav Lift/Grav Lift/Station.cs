@@ -18,9 +18,11 @@ namespace IngameScript
 {
     partial class Program
     {
-        public class Station
+        public class Station : Waypoint
         {
-            IMyButtonPanel panel;
+            public IMyButtonPanel panel { get; private set; }
+            public Corridor corridor { get; private set; }
+            public Vector3 positionInCorridor { get; private set; }
 
             public Station (IMyButtonPanel panel)
             {
@@ -30,6 +32,12 @@ namespace IngameScript
             public string GetName()
             {
                 return panel.CustomName;
+            }
+
+            public void SetCorridor (Corridor corridor, Vector3 positionInCorridor)
+            {
+                this.corridor = corridor;
+                this.positionInCorridor = positionInCorridor;
             }
         }
     }
