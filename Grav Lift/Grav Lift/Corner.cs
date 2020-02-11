@@ -32,21 +32,22 @@ namespace IngameScript
             {
                 corridors.Add(corridor);
             }
-            public override void FindPathRecursive(Waypoint origin)
+            public override void FindPathRecursive()
             {
-                base.FindPathRecursive(origin);
+                base.FindPathRecursive();
 
                 foreach (Corridor corridor in corridors)
                 {
-                    if (corridor != origin && !corridor.visited)
+                    if (corridor != nextWaypoint && !corridor.visited)
                     {
+                        corridor.nextWaypoint = this;
                         ToTest.Enqueue(corridor);
                     }
                 }
 
                 if (ToTest.Count > 0)
                 {
-                    ToTest.Dequeue().FindPathRecursive(this);
+                    ToTest.Dequeue().FindPathRecursive();
                 }
             }
 

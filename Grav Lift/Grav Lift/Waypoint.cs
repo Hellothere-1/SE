@@ -39,7 +39,8 @@ namespace IngameScript
 
                 target = from;
 
-                to.corridor.FindPathRecursive(to);
+                to.corridor.nextWaypoint = to;
+                to.corridor.FindPathRecursive();
 
                 bool pathFound = from.visited;
 
@@ -61,9 +62,8 @@ namespace IngameScript
                 }
             }
 
-            public virtual void FindPathRecursive(Waypoint origin)
+            public virtual void FindPathRecursive()
             {
-                nextWaypoint = origin;
                 visited = true;
                 allVisited.Add(this);
             }

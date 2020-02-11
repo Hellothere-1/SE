@@ -43,7 +43,12 @@ namespace IngameScript
             {
                 this.core = core;
                 main = program;
-                position = core.Position - Base6Directions.GetIntVector(core.Orientation.Up);
+                int offset;
+                if(!int.TryParse(core.CustomData, out offset))
+                {
+                    offset = 1;
+                }    
+                position = core.Position - offset * Base6Directions.GetIntVector(core.Orientation.Up);
                 referenceOffset = (position - main.reference.Position) * 2.5f;
 
                 core.Orientation.GetMatrix(out localRotationMatrix);
@@ -104,6 +109,8 @@ namespace IngameScript
                 velocity = Vector3.Transform(velocity, localRotationMatrix);
                 compensateAcc = Vector3.Transform(compensateAcc, localRotationMatrix);
 
+                main.Echo("gens: " + numberOfGeneratorsInDirection[2]);
+
                 Vector3 grav;
 
                 Vector3 target;
@@ -114,6 +121,7 @@ namespace IngameScript
                 }
                 else
                 {
+                    main.Echo(targetCornerIndex.ToString());
                     target = new Vector3(0, 0, cornerCoordinates[targetCornerIndex]);
                 }
 
@@ -188,30 +196,37 @@ namespace IngameScript
 
             public float GetMaxacceleration(int axis)
             {
-                return numberOfGeneratorsInDirection[axis] * 5.5f;
+                return numberOfGeneratorsInDirection[axis] * 8f;
             }
 
-            public override void FindPathRecursive(Waypoint origin)
+            public override void FindPathRecursive()
             {
-                base.FindPathRecursive(origin);
+                base.FindPathRecursive();
+
+                if (nextWaypoint is Corner)
+                {
+                    targetCornerIndex = corners.IndexOf((Corner)nextWaypoint);
+                }
 
                 if(stations.Contains(target))
                 {
-                    target.FindPathRecursive(this);
+                    target.nextWaypoint = this;
+                    target.FindPathRecursive();
                     return;
                 }
 
-                foreach (Corner corner in corners)
+                for(int i=0;i<corners.Count;i++)
                 {
-                    if (corner != origin && !corner.visited)
+                    if (corners[i] != nextWaypoint && !corners[i].visited)
                     {
-                        ToTest.Enqueue(corner);
+                        corners[i].nextWaypoint = this;
+                        ToTest.Enqueue(corners[i]);
                     }
                 }
 
                 if (ToTest.Count > 0)
                 {
-                    ToTest.Dequeue().FindPathRecursive(this);
+                    ToTest.Dequeue().FindPathRecursive();
                 }
             }
         }

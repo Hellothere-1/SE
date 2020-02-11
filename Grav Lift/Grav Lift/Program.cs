@@ -112,7 +112,7 @@ namespace IngameScript
 
             foreach (IMyGravityGenerator g in gravityGenerators)
             {
-                if (g.CustomName.Contains("core"))
+                if (g.CustomName.Contains("Core"))
                 {
                     cores.Add(g);
                 }
@@ -192,6 +192,8 @@ namespace IngameScript
                 closest.SetScreen(screen);
                 yield return true;
             }
+
+            UpdateScreens();
 
             List<IMyTerminalBlock> corners = new List<IMyTerminalBlock>();
             blocks.GetBlocks(corners, x => x.CustomName.Contains("corner"));
