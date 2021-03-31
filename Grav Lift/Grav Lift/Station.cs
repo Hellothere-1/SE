@@ -22,16 +22,18 @@ namespace IngameScript
         {
             public  enum DoorState { idle, operation, exit}
 
-            public DoorState doorState;
+            public DoorState doorState = DoorState.exit;
             public IMyButtonPanel panel { get; private set; }
             public Corridor corridor { get; private set; }
             public Vector3 positionInCorridor { get; private set; }
-            IMyTextPanel screen;
+            List<IMyTextPanel> screens = new List<IMyTextPanel>();
             List<IMyDoor> inners = new List<IMyDoor>();
             List<IMyDoor> outers = new List<IMyDoor>();
             bool doorsIdle = false;
 
             int closeTimer = 0;
+
+            public CorridorSystem parent;
 
             public Station(IMyButtonPanel panel)
             {
@@ -54,9 +56,9 @@ namespace IngameScript
                 return nextWaypoint;
             }
 
-            public void SetScreen(IMyTextPanel screen)
+            public void AddScreen(IMyTextPanel screen)
             {
-                this.screen = screen;
+                this.screens.Add(screen);
             }
 
             public void AddInnerDoor(IMyDoor door)
@@ -91,7 +93,7 @@ namespace IngameScript
                 {
                     door.Enabled = true;
                     door.CloseDoor();
-                    if (door.OpenRatio == 0)
+                    if (door.Status == DoorStatus.Closed)
                     {
                         if (inner || secure)
                         {
@@ -106,7 +108,7 @@ namespace IngameScript
                 if(closed)
                 {
                     closeTimer++;
-                    return closeTimer > 10;
+                    return closeTimer > 4;
                 }
                 return false;
             }
@@ -163,7 +165,7 @@ namespace IngameScript
 
             public void SetText(string text)
             {
-                if (screen != null)
+                foreach(IMyTextPanel screen in screens)
                 {
                     screen.WriteText(GetName());
                     screen.WriteText(text,true);

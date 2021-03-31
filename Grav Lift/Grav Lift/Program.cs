@@ -22,7 +22,10 @@ namespace IngameScript
 
         IMyShipController reference;
 
-        Corridor[] corridors;
+        List<CorridorSystem> corridorSystems = new List<CorridorSystem>();
+
+        List<CorridorSystem> activeCorridorSystems = new List<CorridorSystem>();
+
         Station[] stations;
 
         List<IMySensorBlock> sensors = new List<IMySensorBlock>();
@@ -30,27 +33,20 @@ namespace IngameScript
 
         const float fontSize = 1.7f;
 
-        int lines = (int)(17/fontSize);
+        const int lines = (int)(17/fontSize);
 
         List<MyDetectedEntityInfo> detectedPlayers = new List<MyDetectedEntityInfo>();
         List<MyDetectedEntityInfo> sensorContacts = new List<MyDetectedEntityInfo>();
-        MyDetectedEntityInfo activePlayer;
 
 
         MatrixD worldToAnchorLocalMatrix;
 
+        bool matrixUpdated;
+        bool sensorsUpdated;
+
         IEnumerator<bool> _stateMachine;
-
-        Waypoint active;
-        Station target;
-        Station origin;
-
-        int selectedStation;
-
-        enum TravelProgress {Idle, Launching, Travelling, Arriving, WaitForDoors}
-
-        TravelProgress travelProgress = TravelProgress.Idle;
-        
+       
+        public enum TravelProgress { Idle, Launching, Travelling, Arriving, WaitForDoors }
         public Program()
         {
             _stateMachine = Init();
@@ -106,13 +102,57 @@ namespace IngameScript
             _stateMachine.Dispose();
             _stateMachine = null;
 
-            foreach (Corridor c in corridors)
-            {
-                c.SetGravity(Vector3.Zero);
-            }
-
             Echo("Init complete");
             return true;
+        }
+
+        void TargetSelection(string argument)
+        {
+            if (argument == "up" || argument == "u")
+            {
+                foreach(CorridorSystem c in corridorSystems)
+                {
+                    c.MoveMarker(-1);
+                }
+                return;
+            }
+            else if (argument == "down" || argument == "d")
+            {
+                foreach (CorridorSystem c in corridorSystems)
+                {
+                    c.MoveMarker(1);
+                }
+                return;
+            }
+            string s = argument;
+
+            Station from = stations.FirstOrDefault(x => x.GetName() == s);
+
+            if (from == null)
+            {
+                Echo("Station name not found");
+                Echo(argument);
+                return;
+            }
+
+            if(from.parent == null)
+            {
+                Echo("Station is not attached to a Corridor System");
+                Echo(argument);
+                return;
+            }
+
+            if(from.parent.TryFindPath(from))
+            {
+                Runtime.UpdateFrequency = UpdateFrequency.Update1;
+
+                foreach (IMySensorBlock sensor in sensors)
+                {
+                    sensor.Enabled = true;
+                }
+
+                activeCorridorSystems.Add(from.parent);
+            }
         }
 
         public IEnumerator<bool> Init()
@@ -125,30 +165,28 @@ namespace IngameScript
             List<IMyGravityGenerator> gravityGenerators = new List<IMyGravityGenerator>();
             blocks.GetBlocksOfType(gravityGenerators, x => x.CubeGrid == Me.CubeGrid);
 
+            ////////////////////////////////////////////////////////////////////////////////////////////////
+
             //Create Corridors
-
-            List<IMyGravityGenerator> cores = new List<IMyGravityGenerator>();
-
+            List<Corridor> corridors = new List<Corridor>();
             foreach (IMyGravityGenerator g in gravityGenerators)
             {
                 if (g.CustomName.Contains("core"))
                 {
-                    cores.Add(g);
+                    corridors.Add(new Corridor(g, this));
                 }
             }
 
-
-            corridors = new Corridor[cores.Count];
-            for (int i = 0; i < cores.Count; i++)
-            {
-                corridors[i] = new Corridor(cores[i], this);
-            }
-            if (corridors.Length == 0)
+            if (corridors.Count == 0)
             {
                 Echo("No Corridors found");
                 Runtime.UpdateFrequency = UpdateFrequency.None;
             }
             yield return true;
+
+            ////////////////////////////////////////////////////////////////////////////////////////////////
+            
+            //Adding all Gravity Generators to the closest Corridor
 
             foreach (IMyGravityGenerator g in gravityGenerators)
             {
@@ -170,6 +208,15 @@ namespace IngameScript
                 yield return true;
             }
 
+            foreach (Corridor corridor in corridors)
+            {
+                corridor.SetGravity(Vector3.Zero);
+            }
+
+            ////////////////////////////////////////////////////////////////////////////////////////////////
+            
+            //Assigning all stations to closest corridor
+
             foreach (Station s in stations)
             {
                float min = float.MaxValue;
@@ -189,6 +236,11 @@ namespace IngameScript
                 yield return true;
             }
 
+
+            ////////////////////////////////////////////////////////////////////////////////////////////////
+
+            //Assigning screens and doors to the closest station
+
             List<IMyTextPanel> screens = new List<IMyTextPanel>();
 
             blocks.GetBlocksOfType(screens, x => x.CubeGrid == Me.CubeGrid);
@@ -197,7 +249,7 @@ namespace IngameScript
             {
                 screen.FontSize = fontSize;
 
-                FindClosestStation(screen).SetScreen(screen);
+                FindClosestStation(screen).AddScreen(screen);
                 yield return true;
             }
 
@@ -218,6 +270,10 @@ namespace IngameScript
                 yield return true;
             }
 
+            ////////////////////////////////////////////////////////////////////////////////////////////////
+
+            //Finding Corners and connecting corridors
+
             List<IMyTerminalBlock> corners = new List<IMyTerminalBlock>();
             blocks.GetBlocks(corners, x => x.CustomName.Contains("corner"));
 
@@ -236,8 +292,15 @@ namespace IngameScript
                 yield return true;
             }
 
-            Array.Sort(stations, (x, y) => String.Compare(x.GetName(), y.GetName()));
-            UpdateScreens();
+            CorridorSystem c = new CorridorSystem(this);
+            
+            corridorSystems.Add(c);
+
+            for (int i = 0; i < corridors.Count; i++)
+            { 
+                c.AddCorridor(corridors[i]);  
+            }
+            c.finalize();
 
             bool doorsIdle = false;
             while(!doorsIdle)
@@ -285,188 +348,59 @@ namespace IngameScript
         
         }
 
-        void TargetSelection(string argument)
-        {
-            if (argument == "up" || argument == "u") //
-            {
-                selectedStation--;
-                UpdateScreens();
-                return;
-            }
-            else if (argument == "down" || argument == "d")
-            {
-                selectedStation++;
-                UpdateScreens();
-                return;
-            }
-            string s = argument;
-
-            Station from = stations.FirstOrDefault(x => x.GetName() == s);
-            Station to = stations[selectedStation];
-
-            if (from == null)
-            {
-                Echo("Station name not found");
-                Echo(argument);
-                return;
-            }
-
-
-            if (Waypoint.FindPath(from, to))
-            {
-                if(target!=null)
-                {
-                    target.OperateDoors(Station.DoorState.idle);
-                }
-                active = from.nextWaypoint;
-                target = to;
-                origin = from;
-                foreach (IMySensorBlock sensor in sensors)
-                {
-                    sensor.Enabled = true;
-                }
-                Echo("path found");
-                Runtime.UpdateFrequency = UpdateFrequency.Update1;
-                travelProgress = TravelProgress.Launching;
-            }
-            else
-            {
-                Echo("no path found");
-            }
-        }
 
         public void Main(string argument, UpdateType updateSource)
         {
+            Echo(Runtime.LastRunTimeMs.ToString());
             if (RunInit())
             {
                 return;
             }
 
-            switch (travelProgress)
+            matrixUpdated = false;
+            sensorsUpdated = false;
+
+            if(argument!="")
             {
-                case TravelProgress.Idle:
-                    if (argument != "")
-                    {
-                        TargetSelection(argument);
-                    }
-                    else
-                    {
-                        Runtime.UpdateFrequency = UpdateFrequency.None;
-                    }
-                    break;
-                case TravelProgress.Launching:
-                    if (origin.OperateDoors(Station.DoorState.operation))
-                    {
-                        travelProgress = TravelProgress.Travelling;
-                        SetActivePlayer();
-                    }
-                    break;
-                case TravelProgress.Travelling:
-                    travel();
-                    break;
-
-                case TravelProgress.Arriving:
-                    if(target.OperateDoors(Station.DoorState.exit))
-                    {
-                        Runtime.UpdateFrequency = UpdateFrequency.Update100;
-                        travelProgress = TravelProgress.WaitForDoors;
-                    }
-                    break;
-                case TravelProgress.WaitForDoors:
-                    if (origin.OperateDoors(Station.DoorState.idle))
-                        {
-                        if (argument != "")
-                        {
-                            TargetSelection(argument);
-                            return;
-                        }
-                        GetActivePlayer();
-                        if (activePlayer.EntityId == 0 || Vector3.Distance(activePlayer.Position, target.panel.GetPosition()) > 10)
-                        {
-                            target.OperateDoors(Station.DoorState.idle);
-                            travelProgress = TravelProgress.Idle;
-                            foreach (IMySensorBlock sensor in sensors)
-                            {
-                                sensor.Enabled = false;
-                            }
-                            Runtime.UpdateFrequency = UpdateFrequency.None;
-                        }
-                    }
-                    break;
-            }
-        }
-
-        void travel()
-        {
-            Echo("blib");
-            UpdateOrientationMatrix();
-
-            GetActivePlayer();
-            if (activePlayer.EntityId == 0)
-            {
-                Echo("player lost");
-                terminateTravel();
-                return;
+                TargetSelection(argument);
             }
 
-            Vector3 pos = GetRelativePosition(activePlayer);
-            Vector3 vel = GetRelativeVelocity(activePlayer);
-            Vector3 compensateAcc = Base6Directions.GetVector(reference.Orientation.Up) * -9.81f;
+            int waitForDoorsCount = 0;
 
-            Waypoint next = active.tick(pos, vel, compensateAcc);
-            if(active!=next)
+            for(int i= 0; i < activeCorridorSystems.Count; i++)
             {
-                active = next;
-                origin.OperateDoors(Station.DoorState.idle);
-                if (active == null)
+                activeCorridorSystems[i].Tick();
+
+                switch(activeCorridorSystems[i].travelProgress)
                 {
-                    terminateTravel();
+                    case TravelProgress.WaitForDoors:
+                        waitForDoorsCount++;
+                        break;
+                    case TravelProgress.Idle:
+                        activeCorridorSystems.RemoveAt(i);
+                        i--;
+                        break;
                 }
             }
+
+            if (activeCorridorSystems.Count == 0)
+            {
+                Runtime.UpdateFrequency = UpdateFrequency.None;
+
+                foreach (IMySensorBlock sensor in sensors)
+                {
+                    sensor.Enabled = false;
+                }
+            }
+            //else if(waitForDoorsCount == activeCorridorSystems.Count)
+            //{
+            //    Runtime.UpdateFrequency = UpdateFrequency.Update100;
+            //}
+
+
         }
 
-        void terminateTravel()
-        {
-            travelProgress = TravelProgress.Arriving;
 
-            foreach (Corridor c in corridors)
-            {
-                c.SetGravity(Vector3.Zero);
-            }
-        }
-
-        void UpdateScreens()
-        {
-            if (selectedStation >= stations.Length)
-            {
-                selectedStation = 0;
-            }
-            if (selectedStation < 0)
-            {
-                selectedStation = stations.Length - 1;
-            }
-
-            int linesOnscreen = Math.Min(lines - 3, stations.Length);
-
-            StringBuilder sb = new StringBuilder(lines);
-
-            int startIndex = Clamp(selectedStation - linesOnscreen / 2, 0, stations.Length - linesOnscreen);
-            int endIndex = startIndex + linesOnscreen;
-
-            sb.Append("\n================================================");
-
-            for (int i = startIndex; i < endIndex; i++)
-            {
-                sb.Append('\n');
-                sb.Append(i == selectedStation ? "> " : "   ");
-                sb.Append(stations[i].GetName());
-            }
-            sb.Append("\n================================================");
-            foreach (Station s in stations)
-            {
-                s.SetText(sb.ToString());
-            }
-        }
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////                                          
 
         public Vector3D GetShipVelocity(IMyShipController dataBlock)
@@ -501,11 +435,16 @@ namespace IngameScript
 
         public void UpdateOrientationMatrix()
         {
+            if (matrixUpdated) return;
             worldToAnchorLocalMatrix = Matrix.Transpose(Me.CubeGrid.WorldMatrix.GetOrientation());
+
+            matrixUpdated = true;
         }
 
         public void GetDetectedPlayers ()
         {
+            if (sensorsUpdated) return;
+
             sensorContacts.Clear();
             detectedPlayers.Clear();
             foreach (IMySensorBlock sensor in sensors)
@@ -513,27 +452,7 @@ namespace IngameScript
                 sensor.DetectedEntities(sensorContacts);
                 detectedPlayers.AddList(sensorContacts);
             }
-        }
-
-        public void GetActivePlayer()
-        {
-            GetDetectedPlayers();
-            activePlayer = detectedPlayers.FirstOrDefault(x=>x.EntityId==activePlayer.EntityId);
-        }
-
-        public void SetActivePlayer()
-        {
-            GetDetectedPlayers();
-            double lowestDistance = double.MaxValue;
-            foreach(MyDetectedEntityInfo player in detectedPlayers)
-            {
-                double d = Vector3.DistanceSquared(player.Position, origin.panel.GetPosition());
-                if(d<lowestDistance)
-                {
-                    lowestDistance = d;
-                    activePlayer = player;
-                }
-            }
+            sensorsUpdated = true;
         }
 
         public static int Clamp(int value, int min, int max)

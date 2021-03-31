@@ -37,6 +37,7 @@
   <ItemGroup>
     <Compile Include="Corner.cs" />
     <Compile Include="Corridor.cs" />
+    <Compile Include="CorridorSystem.cs" />
     <Compile Include="MDK\Bootstrapper.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Readme.cs" />
