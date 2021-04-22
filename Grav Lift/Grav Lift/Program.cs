@@ -49,6 +49,8 @@ namespace IngameScript
         public enum TravelProgress { Idle, Launching, Travelling, Arriving, WaitForDoors }
         public Program()
         {
+            Log.program = this;
+
             _stateMachine = Init();
             //Get Block Group
             blocks = GridTerminalSystem.GetBlockGroupWithName("Grav Lift");
@@ -292,15 +294,12 @@ namespace IngameScript
                 yield return true;
             }
 
-            CorridorSystem c = new CorridorSystem(this);
-            
-            corridorSystems.Add(c);
-
-            for (int i = 0; i < corridors.Count; i++)
-            { 
-                c.AddCorridor(corridors[i]);  
+            while(corridors.Count > 0)
+            {
+                CorridorSystem c = Waypoint.CreateCorridorSystem(corridors[0], corridors, this);
+                c.FinishSetup();
+                corridorSystems.Add(c);
             }
-            c.finalize();
 
             bool doorsIdle = false;
             while(!doorsIdle)
@@ -351,7 +350,7 @@ namespace IngameScript
 
         public void Main(string argument, UpdateType updateSource)
         {
-            Echo(Runtime.LastRunTimeMs.ToString());
+            Log.Tick();
             if (RunInit())
             {
                 return;

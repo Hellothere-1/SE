@@ -59,7 +59,7 @@ namespace IngameScript
                 UpdateScreens();
             }
 
-            public void finalize ()
+            public void FinishSetup ()
             {
                 stations.Sort((x, y) => String.Compare(x.GetName(), y.GetName()));
                 UpdateScreens();
@@ -120,8 +120,14 @@ namespace IngameScript
                 Vector3 compensateAcc = Base6Directions.GetVector(program.reference.Orientation.Up) * -9.81f;
 
                 Waypoint next = active.tick(pos, vel, compensateAcc);
+
+
                 if (active != next)
                 {
+                    //if(next is Corner)
+                    //{
+                    //    next = next.nextWaypoint;
+                    //}
                     active = next;
                     origin.OperateDoors(Station.DoorState.idle);
                     if (active == null)

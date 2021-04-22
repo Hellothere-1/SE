@@ -26,15 +26,21 @@ namespace IngameScript
             List<Base6Directions.Direction> gravDirections = new List<Base6Directions.Direction>(); //List of directions for the generators 
             int[] numberOfGeneratorsInDirection = new int[3] { 0, 0, 0 };
 
-            Vector3I position;
+            Vector3I _position;
             Vector3 referenceOffset;
 
             Matrix localRotationMatrix;
 
             public List<Corner> corners { get; private set; } = new List<Corner>();
-            List<float> cornerCoordinates = new List<float>();
+            List<Vector3> targetCoordinates = new List<Vector3>();
 
             int targetCornerIndex;
+
+            static readonly Vector3 idleTargetPos = new Vector3(0.002f, 0.002f, 0.002f);
+            Vector3 target = idleTargetPos;
+            float localTarget = idleTargetPos.Z;
+
+
 
             public List<Station> stations { get; private set; } = new List<Station>();
 
@@ -48,13 +54,14 @@ namespace IngameScript
                 {
                     offset = 1;
                 }    
-                position = core.Position - offset * Base6Directions.GetIntVector(core.Orientation.Up);
+                _position = core.Position - offset * Base6Directions.GetIntVector(core.Orientation.Up);
                 referenceOffset = (position - main.reference.Position) * 2.5f;
 
                 core.Orientation.GetMatrix(out localRotationMatrix);
                 localRotationMatrix = Matrix.Transpose(localRotationMatrix);
             }
 
+            public override Vector3I position => _position;
 
             public int GetRectDistance(IMyCubeBlock block)
             {
@@ -68,21 +75,14 @@ namespace IngameScript
                 {
                     return float.MaxValue;
                 }
-                positionToCorridor = Vector3.Abs(Vector3.Transform(block.Position - position, localRotationMatrix));
+                positionToCorridor = Vector3.Abs(Vector3.Transform(block.Position - _position, localRotationMatrix));
                 return Math.Abs(positionToCorridor.X) + Math.Abs(positionToCorridor.Y);
             }
 
             public bool IsInCorridor(IMyCubeBlock block)
             {
-                Vector3I v1 = block.Position - position;
-
-                if(Vector3I.Dot(v1, Base6Directions.GetIntVector(core.Orientation.Up)) != 0 || Vector3I.Dot(v1, Base6Directions.GetIntVector(core.Orientation.Left)) != 0)
-                {
-                    return false;
-                }
-                Vector3 positionToCorridor = Vector3.Abs(Vector3.Transform(v1, localRotationMatrix)) * 5;
+                Vector3 positionToCorridor = Vector3.Abs(Vector3.Transform(block.Position - core.Position, localRotationMatrix)) * 5;
                 return Math.Abs(positionToCorridor.X) <= core.FieldSize.X && Math.Abs(positionToCorridor.Y) <= core.FieldSize.Y && Math.Abs(positionToCorridor.Z) <= core.FieldSize.Z;
-
             }
 
 
@@ -122,21 +122,33 @@ namespace IngameScript
 
                 main.Echo("gens: " + numberOfGeneratorsInDirection[2]);
 
-                if (Math.Abs(position.Z) > core.FieldSize.Z / 2)
+                //if (Math.Abs(position.Z) > core.FieldSize.Z / 2)
+                //{
+                //    target = idleTargetPos;
+                //    SetGravity(Vector3.Zero); 
+                //    return nextWaypoint;
+                //}
+
+                Vector3 grav;
+                if (target == idleTargetPos)
                 {
+                    localTarget = GetTarget(this, out target);
+                }
+                CheckOpenDoors();
+
+                if (localTarget != 0.001f && Math.Abs(position.Z - localTarget) < 1.5f && Math.Abs(position.X) < 1 && Math.Abs(position.Y) < 1)
+                {
+                    SetGravity(Vector3.Zero);
+                    target = idleTargetPos;
                     return nextWaypoint;
                 }
 
-                Vector3 grav;
-
-                Vector3 target = GetTarget(this);
-                CheckOpenDoors();
-
                 if (Math.Abs(position.Z - target.Z) < 0.7f && Math.Abs(velocity.Z) < 3f) //near target on z axis
                 {
-                    if(Vector3.RectangularDistance(position, target)<1.25f)
+                    if(Vector3.RectangularDistance(position, target) < 1.25f)
                     {
                         SetGravity(Vector3.Zero);
+                        target = idleTargetPos;
                         return nextWaypoint;
                     }
 
@@ -144,6 +156,7 @@ namespace IngameScript
                 }
                 else if (Math.Abs(position.X) < 1 && Math.Abs(position.Y) < 1) // inside corridor
                 {
+
                     grav = -position - velocity - compensateAcc;
 
                     float dCurrent = target.Z - position.Z;
@@ -190,14 +203,14 @@ namespace IngameScript
             public void AddStation(Station station)
             {
                 stations.Add(station);
-                Vector3 positionInCorridor = Vector3.Transform(station.panel.Position - position, localRotationMatrix) * 2.5f;
+                Vector3 positionInCorridor = Vector3.Transform(station.panel.Position - _position, localRotationMatrix) * 2.5f;
                 station.SetCorridor(this, positionInCorridor);
             }
 
             public void AddCorner(Corner corner)
             {
                 corners.Add(corner);
-                cornerCoordinates.Add(Vector3.Transform(corner.block.Position - position, localRotationMatrix).Z * 2.5f);
+                targetCoordinates.Add(Vector3.Transform(corner.position - _position, localRotationMatrix) * 2.5f);
                 corner.AddCorridor(this);
             }
 
@@ -225,37 +238,25 @@ namespace IngameScript
                 }
             }
 
-            public Vector3 GetTarget(Corridor offsetOrigin)
+            public float GetTarget(Corridor offsetOrigin, out Vector3 target)
             {
-                Vector3 target;
-                if (nextWaypoint is Station)
-                {
-                    target = ((Station)nextWaypoint).positionInCorridor;
-                }
-                else
-                {
-                    Corridor nextCorridor = nextWaypoint.nextWaypoint as Corridor;
+                target = Vector3.Transform(nextWaypoint.position - offsetOrigin._position, offsetOrigin.localRotationMatrix) * 2.5f;
+                float localTarget = target.Z;
 
+                if (nextWaypoint is Corner)
+                {
+                    Corridor nextCorridor = (Corridor)nextWaypoint.nextWaypoint;
                     if (Base6Directions.GetAxis(nextCorridor.core.Orientation.Forward) == Base6Directions.GetAxis(core.Orientation.Forward))
                     {
-                        target = nextCorridor.GetTarget(offsetOrigin);
-                    }
-                    else
-                    {
-                        target = new Vector3(0, 0, cornerCoordinates[targetCornerIndex]);
+                        nextCorridor.GetTarget(offsetOrigin, out target);
+                        return localTarget;
                     }
                 }
 
-                if(offsetOrigin != this)
-                {
-                    int offset = Vector3I.Dot(position - offsetOrigin.position,Base6Directions.GetIntVector(offsetOrigin.core.Orientation.Forward));
-                    target.Z = offset * 2.5f + Vector3I.Dot(Base6Directions.GetIntVector(core.Orientation.Forward), Base6Directions.GetIntVector(offsetOrigin.core.Orientation.Forward)) * target.Z;
-                }
-
-                return target;
+                return 0.001f;
             }
 
-            public override void FindPathRecursive()
+            public override bool FindPathRecursive()
             {
                 base.FindPathRecursive();
 
@@ -264,14 +265,14 @@ namespace IngameScript
                     targetCornerIndex = corners.IndexOf((Corner)nextWaypoint);
                 }
 
-                if(stations.Contains(target))
+                if(stations.Contains(Waypoint.targetStation))
                 {
-                    target.nextWaypoint = this;
-                    target.FindPathRecursive();
-                    return;
+                    Waypoint.targetStation.nextWaypoint = this;
+                    Waypoint.targetStation.FindPathRecursive();
+                    return true;
                 }
 
-                for(int i=0;i<corners.Count;i++)
+                for (int i = 0; i < corners.Count; i++)
                 {
                     if (corners[i] != nextWaypoint && !corners[i].visited)
                     {
@@ -280,10 +281,7 @@ namespace IngameScript
                     }
                 }
 
-                if (ToTest.Count > 0)
-                {
-                    ToTest.Dequeue().FindPathRecursive();
-                }
+                return false;
             }
         }
 

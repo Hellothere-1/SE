@@ -19,11 +19,11 @@ namespace IngameScript
     partial class Program
     {
 
-        public class Waypoint
+        public abstract class Waypoint
         {
             public Waypoint nextWaypoint = null;
             public bool visited = false;
-            static protected Station target;
+            static protected Station targetStation;
             static protected Queue<Waypoint> ToTest = new Queue<Waypoint>();
             static protected List<Waypoint> allVisited = new List<Waypoint>();
 
@@ -37,10 +37,19 @@ namespace IngameScript
                 allVisited.Clear();
                 to.nextWaypoint = null;
 
-                target = from;
+                targetStation = from;
 
                 to.corridor.nextWaypoint = to;
-                to.corridor.FindPathRecursive();
+
+                ToTest.Enqueue(to.corridor);
+
+                while(ToTest.Count > 0)
+                {
+                    if(ToTest.Dequeue().FindPathRecursive())
+                    {
+                        break;
+                    }
+                }
 
                 bool pathFound = from.visited;
 
@@ -49,10 +58,38 @@ namespace IngameScript
                 return pathFound;
             }
 
+            public static CorridorSystem CreateCorridorSystem (Corridor origin, List<Corridor> corridors, Program program)
+            {
+                ToTest.Clear();
+                allVisited.Clear();
+
+                ToTest.Enqueue(origin);
+
+                CorridorSystem c = new CorridorSystem(program);
+
+                while (ToTest.Count > 0)
+                {
+                    Waypoint w = ToTest.Dequeue();
+                    w.FindPathRecursive();
+
+                    if(w is Corridor)
+                    {
+                        c.AddCorridor((Corridor)w);
+                        corridors.Remove((Corridor)w);
+                    }
+                }
+
+                ClearAll();
+
+                return c;
+            }
+
             public virtual Waypoint tick(Vector3 position, Vector3 velocity, Vector3 compensateAcc)
             {
                 return null;
             }
+
+            public virtual Vector3I position => Vector3I.Zero;
 
             public static void ClearAll()
             {
@@ -62,10 +99,11 @@ namespace IngameScript
                 }
             }
 
-            public virtual void FindPathRecursive()
+            public virtual bool FindPathRecursive()
             {
                 visited = true;
                 allVisited.Add(this);
+                return false;
             }
 
             protected void Clear()

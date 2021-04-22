@@ -40,6 +40,8 @@ namespace IngameScript
                 this.panel = panel;
             }
 
+            public override Vector3I position => panel.Position;
+
             public string GetName()
             {
                 return panel.CustomName;
@@ -103,6 +105,7 @@ namespace IngameScript
                     else
                     {
                         closed = false;
+                        closeTimer = 0;
                     }
                 }
                 if(closed)
@@ -118,7 +121,7 @@ namespace IngameScript
                 if (doorState != state)
                 {
                     doorsIdle = false;
-                    closeTimer = 0;
+
                 }
                 doorState = state;
                 return OperateDoors();
@@ -153,7 +156,6 @@ namespace IngameScript
                         }
                         return false;
                     default:
-                        closeTimer = 100000;
                         if( CloseDoors(true, true) && CloseDoors(false, false))
                         {
                             doorsIdle = true;
