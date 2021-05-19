@@ -21,7 +21,7 @@ namespace IngameScript
         public class Corridor : Waypoint
         {
             IMyGravityGenerator core;
-            Program main;
+            public static Program program;
             List<IMyGravityGenerator> grav = new List<IMyGravityGenerator>(); //List of Generators
             List<Base6Directions.Direction> gravDirections = new List<Base6Directions.Direction>(); //List of directions for the generators 
             int[] numberOfGeneratorsInDirection = new int[3] { 0, 0, 0 };
@@ -29,7 +29,7 @@ namespace IngameScript
             Vector3I _position;
             Vector3 referenceOffset;
 
-            Matrix localRotationMatrix;
+            public readonly Matrix localRotationMatrix;
 
             public List<Corner> corners { get; private set; } = new List<Corner>();
             List<Vector3> targetCoordinates = new List<Vector3>();
@@ -40,25 +40,42 @@ namespace IngameScript
             Vector3 target = idleTargetPos;
             float localTarget = idleTargetPos.Z;
 
+            static string[] properties = new string[7] { "corridorPos:", "front:", "back:", "left:", "right:", "up:", "down:" };
+            static string[] commentary = new string[7] { "//How many blocks above this block does the center of the corridor lie?\n//(can be negative if below)", "\n//How many blocks in each of these directions does the corridor\n//need to extend from the center at minimum?", "", "", "", "", "" };
+            static float[] baseValues = new float[7] { 1, 20, 20, 0, 0, 0, 0 };
+            static float[] values = new float[7];
+
+            Vector3 positiveExtend;
+            Vector3 negativeExtend;
 
 
             public List<Station> stations { get; private set; } = new List<Station>();
 
 
-            public Corridor(IMyGravityGenerator core, Program program)
+            public Corridor(IMyGravityGenerator core)
             {
                 this.core = core;
-                main = program;
-                int offset;
-                if(!int.TryParse(core.CustomData, out offset))
-                {
-                    offset = 1;
-                }    
-                _position = core.Position - offset * Base6Directions.GetIntVector(core.Orientation.Up);
-                referenceOffset = (position - main.reference.Position) * 2.5f;
+
+
+                CustomDataReader.ReadData(core, properties, commentary, baseValues, values);
+
+                int offset = (int)values[0];
+                positiveExtend = new Vector3(values[3], values[5], values[1]);
+                negativeExtend = new Vector3(values[4], values[6], values[2]);
+
+                SetGeneratorField(core, Vector3.Max(Vector3.Abs(positiveExtend), Vector3.Abs(negativeExtend)));
+
+                _position = core.Position + offset * Base6Directions.GetIntVector(core.Orientation.Up);
+                referenceOffset = (position - program.reference.Position) * 2.5f;
 
                 core.Orientation.GetMatrix(out localRotationMatrix);
                 localRotationMatrix = Matrix.Transpose(localRotationMatrix);
+
+            }
+
+            public string GetName()
+            {
+                return core.CustomName;
             }
 
             public override Vector3I position => _position;
@@ -93,23 +110,59 @@ namespace IngameScript
             public void AddGenerator(IMyGravityGenerator generator)
             {
                 grav.Add(generator);
+
+                Matrix rotationMatrix;
+                generator.Orientation.GetMatrix(out rotationMatrix);
+                rotationMatrix = Matrix.Transpose(rotationMatrix);
+
+                Vector3 relativeOffset = Vector3.Transform(position - generator.Position, rotationMatrix);
+
+                Matrix coreMatrix;
+                core.Orientation.GetMatrix(out coreMatrix);
+
+                Vector3 posEx = Vector3.Transform(Vector3.Transform(positiveExtend, coreMatrix), rotationMatrix);
+                Vector3 negEx = Vector3.Transform(Vector3.Transform(negativeExtend, coreMatrix), rotationMatrix);
+
+                Vector3 extend = Vector3.Max(Vector3.Abs(relativeOffset + posEx), Vector3.Abs(relativeOffset - negEx));
+                SetGeneratorField(generator, extend);
+
+
                 Base6Directions.Direction direction = core.Orientation.TransformDirectionInverse(generator.Orientation.Up); //transforms the "Up" direction of the generator into the direction of the corridor coordinates
                 gravDirections.Add(direction);
                 numberOfGeneratorsInDirection[((int)Base6Directions.GetAxis(direction) + 2) % 3]++;
 
             }
 
+            static void SetGeneratorField (IMyGravityGenerator gen, Vector3 blockExtend)
+            {
+                blockExtend = (blockExtend * 2 + Vector3.One) * 2.5f;
+
+                gen.FieldSize = blockExtend;
+            }
+
             public void SetGravity(Vector3 gravity)
             {
-                gravity.X = Clamp(gravity.X / numberOfGeneratorsInDirection[0], -9.81f, 9.81f);
-                gravity.Y = Clamp(gravity.Y / numberOfGeneratorsInDirection[1], -9.81f, 9.81f);
-                gravity.Z = Clamp(gravity.Z / numberOfGeneratorsInDirection[2], -9.81f, 9.81f);
+                if (numberOfGeneratorsInDirection[0] > 0)
+                    gravity.X = Clamp(gravity.X / numberOfGeneratorsInDirection[0], -9.81f, 9.81f);
+                if (numberOfGeneratorsInDirection[1] > 0)
+                    gravity.Y = Clamp(gravity.Y / numberOfGeneratorsInDirection[1], -9.81f, 9.81f);
+                if (numberOfGeneratorsInDirection[2] > 0)
+                    gravity.Z = Clamp(gravity.Z / numberOfGeneratorsInDirection[2], -9.81f, 9.81f);
 
                 for (int i = 0; i < grav.Count; i++)
                 {
                     float acceleration = -gravity.Dot(Base6Directions.GetVector(gravDirections[i]));
                     grav[i].GravityAcceleration = acceleration;
                     grav[i].Enabled = acceleration != 0;
+                }
+            }
+
+            public void SetTestMode (bool test)
+            {
+                foreach(IMyGravityGenerator g in grav)
+                {
+                    g.Enabled = test;
+                    g.ShowOnHUD = test;
                 }
             }
 
@@ -120,7 +173,7 @@ namespace IngameScript
                 velocity = Vector3.Transform(velocity, localRotationMatrix);
                 compensateAcc = Vector3.Transform(compensateAcc, localRotationMatrix);
 
-                main.Echo("gens: " + numberOfGeneratorsInDirection[2]);
+                Log.singleFrameMessages.Add("gens: " + numberOfGeneratorsInDirection[2]);
 
                 //if (Math.Abs(position.Z) > core.FieldSize.Z / 2)
                 //{
@@ -152,7 +205,7 @@ namespace IngameScript
                         return nextWaypoint;
                     }
 
-                    grav = target - position - velocity/3 - compensateAcc;
+                    grav = LimitVectorABS(target - position, 5) - velocity / 3 - compensateAcc;
                 }
                 else if (Math.Abs(position.X) < 1 && Math.Abs(position.Y) < 1) // inside corridor
                 {
@@ -197,6 +250,15 @@ namespace IngameScript
 
                 SetGravity(grav);
                 return this;
+            }
+
+            Vector3 LimitVectorABS(Vector3 v, float max)
+            {
+                v.X = Math.Min(Math.Max(v.X, -max), max);
+                v.Y = Math.Min(Math.Max(v.Y, -max), max);
+                v.Z = Math.Min(Math.Max(v.Z, -max), max);
+
+                return v;
             }
 
 

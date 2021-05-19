@@ -18,22 +18,30 @@ namespace IngameScript
 {
     partial class Program : MyGridProgram
     {
+        const float airlockCycleTime = 1f;
+
+        const string groupName = "Grav Lift";
+
+        Color cornerLightColor = new Color(0.7f, 0.8f, 1f);
+
         IMyBlockGroup blocks;
 
         IMyShipController reference;
 
-        List<CorridorSystem> corridorSystems = new List<CorridorSystem>();
+        List<CorridorSystem> corridorSystems;
 
-        List<CorridorSystem> activeCorridorSystems = new List<CorridorSystem>();
+        List<CorridorSystem> activeCorridorSystems;
 
         Station[] stations;
 
-        List<IMySensorBlock> sensors = new List<IMySensorBlock>();
-        List<IMyDoor> OpenDoors = new List<IMyDoor>();
+        List<IMySensorBlock> sensors;
+        List<IMyDoor> OpenDoors;
 
         const float fontSize = 1.7f;
 
         const int lines = (int)(17/fontSize);
+
+        bool initAborted = false;
 
         List<MyDetectedEntityInfo> detectedPlayers = new List<MyDetectedEntityInfo>();
         List<MyDetectedEntityInfo> sensorContacts = new List<MyDetectedEntityInfo>();
@@ -45,25 +53,99 @@ namespace IngameScript
         bool sensorsUpdated;
 
         IEnumerator<bool> _stateMachine;
+
+        bool testMode = false;
        
         public enum TravelProgress { Idle, Launching, Travelling, Arriving, WaitForDoors }
         public Program()
         {
-            Log.program = this;
+            Log.program = Station.program = Corridor.program = CorridorSystem.program = this;
+            Setup();
+        }
 
+        void Setup()
+        {
+            if(_stateMachine !=null)
+            {
+                _stateMachine.Dispose();
+            }
             _stateMachine = Init();
+            Log.Clear();
+            initAborted = false;
+            Runtime.UpdateFrequency = UpdateFrequency.Once;
+        }
+        
+
+        public bool RunInit()
+        {
+            if (_stateMachine == null)
+            {
+                return false;
+            }
+
+            if(initAborted)
+            {
+                Setup();
+                return true;
+            }
+
+            bool hasMoreSteps = _stateMachine.MoveNext();
+
+            if (initAborted)
+            {
+                Runtime.UpdateFrequency = UpdateFrequency.None;
+                return true;
+            }
+
+            if (hasMoreSteps)
+            {
+                Runtime.UpdateFrequency |= UpdateFrequency.Once;
+                return true;
+            }
+
+
+
+            _stateMachine.Dispose();
+            _stateMachine = null;
+
+            Log.AppendLog("\nINIT COMPLETE");
+            Log.clearAfter = true;
+            return true;
+        }
+
+        public IEnumerator<bool> Init()
+        {
+            int initCounter = 0;
+
+            corridorSystems = new List<CorridorSystem>();
+            activeCorridorSystems = new List<CorridorSystem>();
+
+            sensors = new List<IMySensorBlock>();
+            OpenDoors = new List<IMyDoor>();
+
+            testMode = Me.CustomData == "test";
+
+
             //Get Block Group
-            blocks = GridTerminalSystem.GetBlockGroupWithName("Grav Lift");
+            blocks = GridTerminalSystem.GetBlockGroupWithName(groupName);
+
+            if (blocks == null)
+            {
+                Log.AppendLog("NO BLOCKS IN GROUP " + groupName + " FOUND! Aborting.");
+                initAborted = true;
+                yield return false;
+            }
 
             //Get Ship Controller as Reference
 
             List<IMyShipController> controllers = new List<IMyShipController>();
             blocks.GetBlocksOfType(controllers, x => x.CubeGrid == Me.CubeGrid);
 
-            if(controllers.Count == 0)
+            if (controllers.Count == 0)
             {
-                Echo("No Remote Control or Cockpit found");
-                return;
+                Log.AppendLog("NO REMOTE OR COCKPIT FOUND! Aborting.");
+                initAborted = true;
+                yield return false;
             }
             reference = controllers[0];
 
@@ -83,85 +165,8 @@ namespace IngameScript
                 stations[i] = new Station(panels[i]);
             }
             Runtime.UpdateFrequency = UpdateFrequency.Once;
-        }
 
-        public bool RunInit()
-        {
-            if (_stateMachine == null)
-            {
-                return false;
-            }
-
-            bool hasMoreSteps = _stateMachine.MoveNext();
-
-            if (hasMoreSteps)
-            {
-                Echo("initializing");
-                Runtime.UpdateFrequency |= UpdateFrequency.Once;
-                return true;
-            }
-
-            _stateMachine.Dispose();
-            _stateMachine = null;
-
-            Echo("Init complete");
-            return true;
-        }
-
-        void TargetSelection(string argument)
-        {
-            if (argument == "up" || argument == "u")
-            {
-                foreach(CorridorSystem c in corridorSystems)
-                {
-                    c.MoveMarker(-1);
-                }
-                return;
-            }
-            else if (argument == "down" || argument == "d")
-            {
-                foreach (CorridorSystem c in corridorSystems)
-                {
-                    c.MoveMarker(1);
-                }
-                return;
-            }
-            string s = argument;
-
-            Station from = stations.FirstOrDefault(x => x.GetName() == s);
-
-            if (from == null)
-            {
-                Echo("Station name not found");
-                Echo(argument);
-                return;
-            }
-
-            if(from.parent == null)
-            {
-                Echo("Station is not attached to a Corridor System");
-                Echo(argument);
-                return;
-            }
-
-            if(from.parent.TryFindPath(from))
-            {
-                Runtime.UpdateFrequency = UpdateFrequency.Update1;
-
-                foreach (IMySensorBlock sensor in sensors)
-                {
-                    sensor.Enabled = true;
-                }
-
-                activeCorridorSystems.Add(from.parent);
-            }
-        }
-
-        public IEnumerator<bool> Init()
-        {
-            Echo("mark");
-            int initCounter = 0;
-
+            yield return true;
 
             //Get All Gravity Generators
             List<IMyGravityGenerator> gravityGenerators = new List<IMyGravityGenerator>();
@@ -170,26 +175,33 @@ namespace IngameScript
             ////////////////////////////////////////////////////////////////////////////////////////////////
 
             //Create Corridors
-            List<Corridor> corridors = new List<Corridor>();
+
+           Log.AppendLog("Finding corridor cores");
+
+           List <Corridor> corridors = new List<Corridor>();
             foreach (IMyGravityGenerator g in gravityGenerators)
             {
-                if (g.CustomName.Contains("core"))
+                if (g.CustomName.Contains("core")|| g.CustomName.Contains("Core"))
                 {
-                    corridors.Add(new Corridor(g, this));
+                    corridors.Add(new Corridor(g));
                 }
             }
 
             if (corridors.Count == 0)
             {
-                Echo("No Corridors found");
-                Runtime.UpdateFrequency = UpdateFrequency.None;
+                Log.AppendLog("\nNO CORRIDOR CORES FOUND. Aborting");
+                initAborted = true;
+                yield return false;
+            }
+            else
+            {
+                Log.AppendLog(corridors.Count.ToString() + " Corridors found with " + gravityGenerators.Count + " Generators in total");
             }
             yield return true;
 
             ////////////////////////////////////////////////////////////////////////////////////////////////
-            
-            //Adding all Gravity Generators to the closest Corridor
 
+            Log.AppendLog("Adding all Gravity Generators to the closest Corridor\n");
             foreach (IMyGravityGenerator g in gravityGenerators)
             {
                 int min = int.MaxValue;
@@ -203,7 +215,7 @@ namespace IngameScript
                         min = d;
                         closest = corridor;
                     }
-                    Echo(initCounter++.ToString());
+                    initCounter++;
                 }
                 closest.AddGenerator(g); //add grav gen to corridor with closest core
 
@@ -213,16 +225,19 @@ namespace IngameScript
             foreach (Corridor corridor in corridors)
             {
                 corridor.SetGravity(Vector3.Zero);
+                corridor.SetTestMode(testMode);
             }
 
+
             ////////////////////////////////////////////////////////////////////////////////////////////////
-            
-            //Assigning all stations to closest corridor
+
+            Log.AppendLog("Assigning all stations to closest overlapping corridor");
+            Log.AppendLog(stations.Length.ToString() + " Stations Found");
 
             foreach (Station s in stations)
             {
                float min = float.MaxValue;
-                Corridor closest = corridors[0];
+                Corridor closest = null;
 
                 foreach (Corridor corridor in corridors)  //find closest corridor corridor to current Station
                 {
@@ -232,16 +247,23 @@ namespace IngameScript
                         min = d;
                         closest = corridor;
                     }
-                    Echo(initCounter++.ToString());
+                    initCounter++;
                 }
-                closest.AddStation(s); //add station to closest corridor
+                if (closest == null)
+                {
+                    Log.AppendLog("\nSTATION '" + s.GetName() + "' IS NOT ATTACHED TO ANY CORRIDOR");
+                }
+                else
+                {
+                    closest.AddStation(s); //add station to closest corridor
+                }
                 yield return true;
             }
 
 
             ////////////////////////////////////////////////////////////////////////////////////////////////
 
-            //Assigning screens and doors to the closest station
+            Log.AppendLog("\nAssigning screens and doors to the closest station\n");
 
             List<IMyTextPanel> screens = new List<IMyTextPanel>();
 
@@ -250,6 +272,7 @@ namespace IngameScript
             foreach (IMyTextPanel screen in screens)
             {
                 screen.FontSize = fontSize;
+                screen.ContentType = VRage.Game.GUI.TextPanel.ContentType.TEXT_AND_IMAGE;
 
                 FindClosestStation(screen).AddScreen(screen);
                 yield return true;
@@ -261,11 +284,11 @@ namespace IngameScript
 
             foreach (IMyDoor door in doors)
             {
-                if (door.CustomName.Contains("inner"))
+                if (door.CustomName.Contains("inner") || door.CustomName.Contains("Inner"))
                 {
                     FindClosestStation(door).AddInnerDoor(door);
                 }
-                else if (door.CustomName.Contains("outer"))
+                else if (door.CustomName.Contains("outer") || door.CustomName.Contains("Outer"))
                 {
                     FindClosestStation(door).AddOuterDoor(door);
                 }
@@ -277,28 +300,47 @@ namespace IngameScript
             //Finding Corners and connecting corridors
 
             List<IMyTerminalBlock> corners = new List<IMyTerminalBlock>();
-            blocks.GetBlocks(corners, x => x.CustomName.Contains("corner"));
+            blocks.GetBlocks(corners, x => x.CustomName.IndexOf("corner", StringComparison.OrdinalIgnoreCase) >= 0);
 
-            foreach(IMyTerminalBlock block in corners)
+            Log.AppendLog("Connecting corridor systems");
+            Log.AppendLog(corners.Count.ToString() + " Corners found");
+
+            foreach (IMyTerminalBlock block in corners)
             {
                 Corner corner = new Corner(block);
 
-                foreach(Corridor corridor in corridors)
+                if (block is IMyLightingBlock && cornerLightColor != Color.Black)
+                {
+                    ((IMyLightingBlock)block).Color = cornerLightColor;
+                }
+                ((IMyLightingBlock)block).Color = cornerLightColor;
+
+                foreach (Corridor corridor in corridors)
                 {
                     if(corridor.IsInCorridor(block))
                     {
                         corridor.AddCorner(corner);
                     }
                 }
-                Echo(initCounter++.ToString());
+                switch(corner.corridors.Count)
+                {
+                    case 0: 
+                        Log.AppendLog("\nCORNER '" + block.CustomName + "' IS NOT IN ANY CORRIDOR");
+                        break;
+                    case 1:
+                        Log.AppendLog("\nCORNER '" + block.CustomName + "' IS ONLY IN CORRIDOR '" + corner.corridors[0].GetName() + "' AND DOESN'T CONNECT TO ANYTHING ELSE");
+                        break;
+                }
+                initCounter++;
                 yield return true;
             }
 
-            while(corridors.Count > 0)
+            while (corridors.Count > 0)
             {
-                CorridorSystem c = Waypoint.CreateCorridorSystem(corridors[0], corridors, this);
+                CorridorSystem c = Waypoint.CreateCorridorSystem(corridors[0], corridors);
                 c.FinishSetup();
                 corridorSystems.Add(c);
+                Log.AppendLog("\nOne connected system with " + c.corridors.Count() + " corridors found");
             }
 
             bool doorsIdle = false;
@@ -350,17 +392,23 @@ namespace IngameScript
 
         public void Main(string argument, UpdateType updateSource)
         {
-            Log.Tick();
+            Echo(DateTime.Now.ToString());
             if (RunInit())
             {
+                Log.Tick();
                 return;
             }
 
             matrixUpdated = false;
             sensorsUpdated = false;
 
-            if(argument!="")
+            if (argument != "")
             {
+                if(argument == "Setup")
+                {
+                    Setup();
+                    return;
+                }
                 TargetSelection(argument);
             }
 
@@ -391,13 +439,62 @@ namespace IngameScript
                     sensor.Enabled = false;
                 }
             }
-            //else if(waitForDoorsCount == activeCorridorSystems.Count)
-            //{
-            //    Runtime.UpdateFrequency = UpdateFrequency.Update100;
-            //}
+            else if (waitForDoorsCount == activeCorridorSystems.Count)
+            {
+                Runtime.UpdateFrequency = UpdateFrequency.Update100;
+            }
+
+            Log.Tick();
 
 
         }
+        void TargetSelection(string argument)
+        {
+            if (argument == "up" || argument == "u")
+            {
+                foreach (CorridorSystem c in corridorSystems)
+                {
+                    c.MoveMarker(-1);
+                }
+                return;
+            }
+            else if (argument == "down" || argument == "d")
+            {
+                foreach (CorridorSystem c in corridorSystems)
+                {
+                    c.MoveMarker(1);
+                }
+                return;
+            }
+            string s = argument;
+
+            Station from = stations.FirstOrDefault(x => x.GetName() == s);
+
+            if (from == null)
+            {
+                Log.AppendLog("Station '" + argument + "' not found");
+                return;
+            }
+
+            if (from.parent == null)
+            {
+                Log.AppendLog("Station '" + argument + "' is not attached to a Corridor System");
+                return;
+            }
+
+            if (from.parent.TryFindPath(from))
+            {
+                Runtime.UpdateFrequency = UpdateFrequency.Update1;
+
+                foreach (IMySensorBlock sensor in sensors)
+                {
+                    sensor.Enabled = true;
+                }
+
+                activeCorridorSystems.Add(from.parent);
+            }
+        }
+
 
 
         ////////////////////////////////////////////////////////////////////////////////////////////////////////////////                                          

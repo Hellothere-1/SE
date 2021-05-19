@@ -20,7 +20,7 @@ namespace IngameScript
     {
         public class Station : Waypoint
         {
-            public  enum DoorState { idle, operation, exit}
+            public enum DoorState { idle, operation, exit }
 
             public DoorState doorState = DoorState.exit;
             public IMyButtonPanel panel { get; private set; }
@@ -31,7 +31,13 @@ namespace IngameScript
             List<IMyDoor> outers = new List<IMyDoor>();
             bool doorsIdle = false;
 
-            int closeTimer = 0;
+            public static Program program;
+
+            public float maxDoorDistance { get; private set; } = 0;
+
+            public bool hasOuterDoors => outers.Count > 0;
+
+            float closeTimer = 0;
 
             public CorridorSystem parent;
 
@@ -66,6 +72,12 @@ namespace IngameScript
             public void AddInnerDoor(IMyDoor door)
             {
                 inners.Add(door);
+
+                if (corridor != null)
+                {
+                    float corridorDistance = Math.Abs(Vector3.Transform(panel.Position - door.Position, corridor.localRotationMatrix).Z);
+                    maxDoorDistance = Math.Max(maxDoorDistance, corridorDistance);
+                }
             }
 
             public void AddOuterDoor(IMyDoor door)
@@ -99,7 +111,15 @@ namespace IngameScript
                     {
                         if (inner || secure)
                         {
-                            door.Enabled = false;
+                            closeTimer += (float)program.Runtime.TimeSinceLastRun.TotalSeconds;
+                            if (closeTimer > airlockCycleTime)
+                            {
+                                door.Enabled = false;
+                            }
+                            else
+                            {
+                                closed = false;
+                            }
                         }
                     }
                     else
@@ -108,12 +128,7 @@ namespace IngameScript
                         closeTimer = 0;
                     }
                 }
-                if(closed)
-                {
-                    closeTimer++;
-                    return closeTimer > 4;
-                }
-                return false;
+                return closed;
             }
 
             public bool OperateDoors(DoorState state)

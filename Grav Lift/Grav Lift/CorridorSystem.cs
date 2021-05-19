@@ -23,14 +23,14 @@ namespace IngameScript
     {
         public class CorridorSystem
         {
-            List<Corridor> corridors = new List<Corridor>();
+            public List<Corridor> corridors = new List<Corridor>();
             List<Station> stations = new List<Station>();
 
             Waypoint active;
             Station target;
             Station origin;
 
-            Program program;
+            public static Program program;
 
             int selectedStation;
 
@@ -38,9 +38,9 @@ namespace IngameScript
 
             MyDetectedEntityInfo activePlayer;
 
-            public CorridorSystem(Program program)
+            public CorridorSystem()
             {
-                this.program = program;
+
             }
 
             public void AddCorridor(Corridor corridor)
@@ -77,7 +77,7 @@ namespace IngameScript
                         }
                         break;
                     case TravelProgress.Travelling:
-                        travel();
+                        Travel();
                         break;
 
                     case TravelProgress.Arriving:
@@ -90,7 +90,7 @@ namespace IngameScript
                         if (origin.OperateDoors(Station.DoorState.idle))
                         {
                             GetActivePlayer();
-                            if (activePlayer.EntityId == 0 || Vector3.Distance(activePlayer.Position, target.panel.GetPosition()) > 10)
+                            if (activePlayer.EntityId == 0 || !target.hasOuterDoors || Vector3.Distance(activePlayer.Position, target.panel.GetPosition()) > 3)
                             {
                                 target.OperateDoors(Station.DoorState.idle);
                                 travelProgress = TravelProgress.Idle;
@@ -101,17 +101,16 @@ namespace IngameScript
             }
 
 
-            void travel()
+            void Travel()
             {
-                program.Echo("blib");
                 program.UpdateOrientationMatrix();
 
                 GetActivePlayer();
 
                 if (activePlayer.EntityId == 0)
                 {
-                    program.Echo("player lost");
-                    terminateTravel();
+                    Log.AppendLog("PLAYER EXITED SENSOR AREA");
+                    TerminateTravel();
                     return;
                 }
 
@@ -132,12 +131,12 @@ namespace IngameScript
                     origin.OperateDoors(Station.DoorState.idle);
                     if (active == null)
                     {
-                        terminateTravel();
+                        TerminateTravel();
                     }
                 }
             }
 
-            void terminateTravel()
+            void TerminateTravel()
             {
                 travelProgress = TravelProgress.Arriving;
 
@@ -149,13 +148,15 @@ namespace IngameScript
 
             public bool TryFindPath(Station from)
             {
-                if(travelProgress!=TravelProgress.Idle && travelProgress!=TravelProgress.WaitForDoors)
+                if (travelProgress != TravelProgress.Idle && travelProgress != TravelProgress.WaitForDoors)
                 {
-                    program.Echo("Corridor System is already active");
+                    Log.AppendLog("Corridor System is already active");
                     return false;
                 }
 
                 Station to = stations[selectedStation];
+                Log.AppendLog("Trying to find Path from " + from.GetName() + " to " + to.GetName());
+
                 if (Waypoint.FindPath(from, to))
                 {
                     if (target != null)
@@ -166,13 +167,13 @@ namespace IngameScript
                     target = to;
                     origin = from;
 
-                    program.Echo("path found");
+                    Log.AppendLog("Path found");
                     travelProgress = TravelProgress.Launching;
                     return true;
                 }
                 else
                 {
-                    program.Echo("no path found");
+                    Log.AppendLog("No path found");
                     return false;
                 }
             }
@@ -187,7 +188,6 @@ namespace IngameScript
                 {
                     selectedStation = stations.Count - 1;
                 }
-                program.Echo(selectedStation.ToString());
 
                 int linesOnscreen = Math.Min(lines - 3, stations.Count);
 

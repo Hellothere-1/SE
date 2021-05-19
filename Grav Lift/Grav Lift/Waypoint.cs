@@ -58,14 +58,14 @@ namespace IngameScript
                 return pathFound;
             }
 
-            public static CorridorSystem CreateCorridorSystem (Corridor origin, List<Corridor> corridors, Program program)
+            public static CorridorSystem CreateCorridorSystem (Corridor origin, List<Corridor> corridors)
             {
                 ToTest.Clear();
                 allVisited.Clear();
 
                 ToTest.Enqueue(origin);
 
-                CorridorSystem c = new CorridorSystem(program);
+                CorridorSystem c = new CorridorSystem();
 
                 while (ToTest.Count > 0)
                 {

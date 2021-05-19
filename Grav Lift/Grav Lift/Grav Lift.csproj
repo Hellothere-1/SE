@@ -35,6 +35,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="CustomDataReader.cs" />
     <Compile Include="Log.cs" />
     <Compile Include="Corner.cs" />
     <Compile Include="Corridor.cs" />
